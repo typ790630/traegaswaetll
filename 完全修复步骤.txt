@@ -1,0 +1,55 @@
+====================================
+完全修复步骤（必须按顺序执行）
+====================================
+
+步骤 1: 强制刷新浏览器（清除旧代码）
+------------------------------------
+按键盘：Ctrl + Shift + R
+或者：Ctrl + F5
+
+这会强制浏览器重新加载最新的代码
+
+
+步骤 2: 清除本地存储
+------------------------------------
+刷新后，在控制台粘贴：
+
+localStorage.clear(); location.reload()
+
+
+步骤 3: 验证地址（等待3秒后运行）
+------------------------------------
+setTimeout(() => {
+  const data = localStorage.getItem('app-store')
+  if (!data) {
+    console.log('⏳ 钱包还在生成，请再等几秒...')
+    return
+  }
+  const store = JSON.parse(data)
+  const wallet = store.state?.wallets?.[0]
+  console.log('='.repeat(60))
+  console.log('地址:', wallet.address)
+  console.log('长度:', wallet.address.length)
+  if (wallet.address.length === 42) {
+    console.log('%c✅ 成功！地址正确！', 'color: green; font-size: 20px; font-weight: bold')
+  } else {
+    console.log('%c❌ 仍然错误，长度是:', wallet.address.length, 'color: red; font-size: 20px; font-weight: bold')
+  }
+  console.log('='.repeat(60))
+}, 3000)
+
+
+====================================
+关键点：
+====================================
+
+⚠️ 必须先强制刷新（Ctrl + Shift + R）
+   这样才能加载最新修复的代码
+
+⚠️ 然后才清除缓存
+   否则还是会用旧代码生成错误地址
+
+⚠️ 验证脚本要等3秒
+   给应用时间生成新钱包
+
+====================================

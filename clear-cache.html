@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>清除钱包缓存</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+        }
+        .info {
+            background: #e7f3ff;
+            border-left-color: #0066cc;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            display: none;
+        }
+        .error {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            display: none;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.success:hover {
+            background: #218838;
+        }
+        pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+        .data-display {
+            margin: 15px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 钱包缓存清除工具</h1>
+        
+        <div class="info">
+            <strong>📋 说明：</strong><br>
+            此工具将帮助你清除钱包的本地缓存数据，解决地址长度错误的问题。<br>
+            <strong>注意：</strong>这只会清除浏览器缓存，不会修改任何代码文件。
+        </div>
+
+        <div class="step">
+            <h3>步骤 1: 查看当前数据</h3>
+            <button onclick="viewCurrentData()">📊 查看当前缓存数据</button>
+            <div id="currentData" class="data-display"></div>
+        </div>
+
+        <div class="step">
+            <h3>步骤 2: 备份数据（可选）</h3>
+            <button onclick="backupData()">💾 备份到剪贴板</button>
+            <button onclick="downloadBackup()">⬇️ 下载备份文件</button>
+        </div>
+
+        <div class="step">
+            <h3>步骤 3: 清除缓存</h3>
+            <button class="danger" onclick="clearCache()">🗑️ 清除缓存</button>
+            <p style="color: #666; font-size: 14px; margin-top: 10px;">
+                ⚠️ 点击后将清除 localStorage 中的钱包数据
+            </p>
+        </div>
+
+        <div class="step">
+            <h3>步骤 4: 刷新应用</h3>
+            <button class="success" onclick="refreshApp()">🔄 刷新应用</button>
+        </div>
+
+        <div id="successMessage" class="success">
+            <strong>✅ 成功！</strong><br>
+            <span id="successText"></span>
+        </div>
+
+        <div id="errorMessage" class="error">
+            <strong>❌ 错误！</strong><br>
+            <span id="errorText"></span>
+        </div>
+
+        <div class="step">
+            <h3>步骤 5: 验证修复</h3>
+            <button onclick="verifyFix()">✔️ 验证地址是否正确</button>
+            <div id="verifyResult"></div>
+        </div>
+    </div>
+
+    <script>
+        function showSuccess(message) {
+            const el = document.getElementById('successMessage');
+            document.getElementById('successText').innerText = message;
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 5000);
+        }
+
+        function showError(message) {
+            const el = document.getElementById('errorMessage');
+            document.getElementById('errorText').innerText = message;
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 5000);
+        }
+
+        function viewCurrentData() {
+            try {
+                const data = localStorage.getItem('app-store');
+                if (!data) {
+                    document.getElementById('currentData').innerHTML = '<p style="color: #999;">没有找到缓存数据</p>';
+                    return;
+                }
+
+                const store = JSON.parse(data);
+                const wallet = store.state?.wallets?.[0];
+                
+                let html = '<pre>';
+                if (wallet) {
+                    html += `<strong>钱包信息：</strong>\n`;
+                    html += `名称: ${wallet.name}\n`;
+                    html += `地址: ${wallet.address}\n`;
+                    html += `地址长度: ${wallet.address.length} 个字符\n`;
+                    html += `十六进制长度: ${wallet.address.substring(2).length} 个字符\n`;
+                    html += `EOA 地址: ${wallet.eoaAddress || '未知'}\n`;
+                    html += `\n<strong>状态：</strong>\n`;
+                    if (wallet.address.length === 42) {
+                        html += `✅ 地址长度正确 (42个字符)\n`;
+                    } else {
+                        html += `❌ 地址长度错误 (当前: ${wallet.address.length}, 应该: 42)\n`;
+                    }
+                } else {
+                    html += '❌ 找不到钱包数据\n';
+                }
+                html += '</pre>';
+                
+                document.getElementById('currentData').innerHTML = html;
+                showSuccess('数据加载成功！');
+            } catch (e) {
+                showError('读取数据失败: ' + e.message);
+            }
+        }
+
+        function backupData() {
+            try {
+                const data = localStorage.getItem('app-store');
+                if (!data) {
+                    showError('没有数据可以备份');
+                    return;
+                }
+                
+                navigator.clipboard.writeText(data).then(() => {
+                    showSuccess('数据已复制到剪贴板！');
+                }).catch(err => {
+                    showError('复制失败: ' + err.message);
+                });
+            } catch (e) {
+                showError('备份失败: ' + e.message);
+            }
+        }
+
+        function downloadBackup() {
+            try {
+                const data = localStorage.getItem('app-store');
+                if (!data) {
+                    showError('没有数据可以下载');
+                    return;
+                }
+                
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `wallet-backup-${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                showSuccess('备份文件已下载！');
+            } catch (e) {
+                showError('下载失败: ' + e.message);
+            }
+        }
+
+        function clearCache() {
+            if (!confirm('确定要清除缓存吗？此操作不可撤销。\n\n建议先备份数据！')) {
+                return;
+            }
+            
+            try {
+                // 先记录旧数据
+                const oldData = localStorage.getItem('app-store');
+                let oldAddress = '未知';
+                if (oldData) {
+                    const store = JSON.parse(oldData);
+                    oldAddress = store.state?.wallets?.[0]?.address || '未知';
+                }
+                
+                // 清除缓存
+                localStorage.removeItem('app-store');
+                
+                showSuccess(`缓存已清除！\n旧地址: ${oldAddress}\n\n请点击"刷新应用"按钮重新生成钱包。`);
+                
+                // 自动显示当前数据
+                setTimeout(() => {
+                    viewCurrentData();
+                }, 1000);
+            } catch (e) {
+                showError('清除失败: ' + e.message);
+            }
+        }
+
+        function refreshApp() {
+            if (confirm('确定要刷新应用吗？\n\n刷新后将重新生成钱包。')) {
+                // 打开应用页面
+                window.open('http://localhost:5175/', '_blank');
+                showSuccess('已打开应用！请等待几秒后点击"验证修复"按钮。');
+            }
+        }
+
+        function verifyFix() {
+            try {
+                const data = localStorage.getItem('app-store');
+                if (!data) {
+                    document.getElementById('verifyResult').innerHTML = 
+                        '<p style="color: #f0ad4e; padding: 10px; background: #fcf8e3; border-radius: 4px;">⚠️ 还没有新数据。请先刷新应用并等待钱包生成。</p>';
+                    return;
+                }
+
+                const store = JSON.parse(data);
+                const wallet = store.state?.wallets?.[0];
+                
+                if (!wallet) {
+                    document.getElementById('verifyResult').innerHTML = 
+                        '<p style="color: #d9534f; padding: 10px; background: #f2dede; border-radius: 4px;">❌ 找不到钱包数据</p>';
+                    return;
+                }
+
+                const isCorrect = wallet.address.length === 42;
+                const hexLength = wallet.address.substring(2).length;
+                
+                let html = '<div style="padding: 15px; border-radius: 6px; margin-top: 10px; ';
+                
+                if (isCorrect) {
+                    html += 'background: #d4edda; border: 1px solid #28a745;">';
+                    html += '<h4 style="color: #155724; margin: 0 0 10px 0;">✅ 修复成功！</h4>';
+                    html += '<pre style="background: #fff; padding: 10px; border-radius: 4px;">';
+                    html += `新地址: ${wallet.address}\n`;
+                    html += `总长度: ${wallet.address.length} 个字符 ✅\n`;
+                    html += `十六进制长度: ${hexLength} 个字符 ✅\n`;
+                    html += `EOA 地址: ${wallet.eoaAddress || '未知'}\n`;
+                    html += '</pre>';
+                    html += '<p style="color: #155724; margin: 10px 0 0 0;">🎉 地址格式正确！现在可以正常使用钱包了。</p>';
+                } else {
+                    html += 'background: #f8d7da; border: 1px solid #dc3545;">';
+                    html += '<h4 style="color: #721c24; margin: 0 0 10px 0;">❌ 仍然有问题</h4>';
+                    html += '<pre style="background: #fff; padding: 10px; border-radius: 4px;">';
+                    html += `地址: ${wallet.address}\n`;
+                    html += `总长度: ${wallet.address.length} 个字符 ❌ (应该是 42)\n`;
+                    html += `十六进制长度: ${hexLength} 个字符 ❌ (应该是 40)\n`;
+                    html += '</pre>';
+                    html += '<p style="color: #721c24; margin: 10px 0 0 0;">请再次清除缓存并刷新。</p>';
+                }
+                
+                html += '</div>';
+                document.getElementById('verifyResult').innerHTML = html;
+                
+            } catch (e) {
+                document.getElementById('verifyResult').innerHTML = 
+                    `<p style="color: #d9534f; padding: 10px; background: #f2dede; border-radius: 4px;">❌ 验证失败: ${e.message}</p>`;
+            }
+        }
+
+        // 页面加载时自动显示当前数据
+        window.onload = function() {
+            viewCurrentData();
+        };
+    </script>
+</body>
+</html>

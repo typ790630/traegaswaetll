@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Traegaswaetll</string>
+    <string name="title_activity_main">Traegaswaetll</string>
+    <string name="package_name">com.traegaswaetll.app</string>
+    <string name="custom_url_scheme">com.traegaswaetll.app</string>
+</resources>

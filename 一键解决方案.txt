@@ -1,0 +1,66 @@
+====================================
+🎯 一键解决方案（复制粘贴即可）
+====================================
+
+问题：代码已修复，但浏览器缓存了旧代码和旧数据
+
+解决：3个脚本，按顺序运行
+
+====================================
+步骤 1: 终极清除（复制整个下面的代码块）
+====================================
+
+(function() {
+  console.log('%c='.repeat(70), 'color: #e91e63; font-weight: bold')
+  console.log('%c💣 终极清除', 'color: #e91e63; font-size: 24px; font-weight: bold')
+  console.log('%c='.repeat(70), 'color: #e91e63; font-weight: bold')
+  localStorage.clear()
+  sessionStorage.clear()
+  console.log('%c✅ 所有缓存已清除', 'color: #4caf50; font-size: 16px; font-weight: bold')
+  console.log('页面将在 2 秒后刷新...')
+  setTimeout(() => location.reload(true), 2000)
+})()
+
+
+====================================
+步骤 2: 等待 5 秒（让应用生成新钱包）
+====================================
+
+等待页面刷新并加载完成
+
+
+====================================
+步骤 3: 验证修复（复制整个下面的代码块）
+====================================
+
+setTimeout(() => {
+  const data = localStorage.getItem('app-store')
+  if (!data) {
+    console.log('⏳ 还在生成钱包，再等几秒...')
+    return
+  }
+  const store = JSON.parse(data)
+  const wallet = store.state?.wallets?.[0]
+  console.log('='.repeat(60))
+  console.log('🔍 验证结果')
+  console.log('='.repeat(60))
+  console.log('地址:', wallet.address)
+  console.log('长度:', wallet.address.length)
+  console.log('='.repeat(60))
+  if (wallet.address.length === 42) {
+    console.log('%c✅ 成功！问题已解决！', 'color: #4caf50; font-size: 20px; font-weight: bold')
+  } else {
+    console.log('%c❌ 长度:', wallet.address.length, 'color: #f44336; font-size: 20px; font-weight: bold')
+  }
+}, 3000)
+
+
+====================================
+预期结果
+====================================
+
+✅ 地址长度: 42
+✅ 控制台: 没有 InvalidAddressError
+✅ 功能: 正常使用
+
+====================================

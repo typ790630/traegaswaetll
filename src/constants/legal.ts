@@ -1,0 +1,203 @@
+export const LEGAL_VERSION = {
+  terms: '1.0.0',
+  privacy: '1.0.0',
+  lastUpdated: '2026-01-20'
+}
+
+export const TERMS_CONTENT = {
+  en: `
+    <h3>1. Acceptance</h3>
+    <p>By installing, accessing, or using Radar Wallet, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service and the related policies (including the Privacy Policy).</p>
+
+    <h3>2. Eligibility and Compliance</h3>
+    <p>You represent that you are legally permitted to use the app and will comply with all applicable laws and regulations in your jurisdiction, including sanctions and export controls.</p>
+
+    <h3>3. Service Description (Non-Custodial)</h3>
+    <p>Radar Wallet is a non-custodial wallet. We do not store, access, or recover your private keys, seed phrases, or funds. All transactions are signed by you and broadcast to blockchain networks.</p>
+
+    <h3>4. Account and Security</h3>
+    <p>You are solely responsible for safeguarding and backing up your private keys/seed phrases, setting secure passcodes, and securing your devices. We are not liable for any loss resulting from theft, loss, disclosure, or misuse.</p>
+
+    <h3>5. Prohibited Uses</h3>
+    <p>You must not use the app for illegal, infringing, fraudulent, money-laundering, terrorist financing, sanctions evasion, network abuse, or distribution of malicious code. We may restrict or terminate services upon detection of risk or violations.</p>
+
+    <h3>6. Fees and Taxes</h3>
+    <p>Certain features may incur service fees. On-chain transactions require network (miner) fees. You are responsible for any applicable taxes.</p>
+
+    <h3>7. Risk Disclosure</h3>
+    <p>Digital assets are highly volatile and subject to technical, market, regulatory, and operational risks, which may result in total loss. You use the app at your own risk.</p>
+
+    <h3>8. Third-Party Services and Networks</h3>
+    <p>The app may integrate third-party services (e.g., DEXs, nodes, price providers). Such services are provided independently under their own terms and privacy policies. Blockchain transactions are public and immutable.</p>
+
+    <h3>9. Intellectual Property</h3>
+    <p>The app, content, trademarks, and documentation are protected by intellectual property laws. No reproduction, distribution, modification, or derivative works without authorization.</p>
+
+    <h3>10. Termination</h3>
+    <p>You may stop using and uninstall the app at any time. We may suspend or terminate services if you violate these Terms or present compliance risks.</p>
+
+    <h3>11. Disclaimer and Limitation of Liability</h3>
+    <p>The app is provided “as is,” without warranties of any kind. To the maximum extent permitted by law, we shall not be liable for any direct, indirect, incidental, special, or consequential damages arising from your use or inability to use the app.</p>
+
+    <h3>12. Indemnification</h3>
+    <p>You agree to indemnify and hold us, our affiliates, employees, and partners harmless from any claims, losses, or expenses arising from your violation of these Terms or applicable laws.</p>
+
+    <h3>13. Changes</h3>
+    <p>We may update these Terms from time to time and will publish updates in the app or on our website. Your continued use after the effective date constitutes acceptance.</p>
+
+    <h3>14. Governing Law and Dispute Resolution</h3>
+    <p>These Terms are governed by the laws of [Jurisdiction], without regard to its conflict of laws principles. Disputes shall be resolved by the competent courts in [Location] after good-faith negotiation.</p>
+
+    <h3>15. Contact</h3>
+    <p>For support or complaints: bia72552@gmail.com.</p>
+  `,
+  zh: `
+    <h3>1. 条款接受</h3>
+    <p>您安装、访问或使用 Radar Wallet，即表示您已阅读、理解并同意本服务条款以及与之相关的政策（包括隐私政策）。</p>
+
+    <h3>2. 资格与合规</h3>
+    <p>您承诺具备合法使用本应用的资格，并遵守您所在司法辖区关于加密资产、数据及金融服务的所有适用法律法规（含制裁与出口管制）。</p>
+
+    <h3>3. 服务描述（非托管）</h3>
+    <p>Radar Wallet 为非托管钱包。我们不保存、不访问、不恢复您的私钥、助记词或资金；所有交易通过您自行签名并在区块链网络上广播。</p>
+
+    <h3>4. 账户与安全</h3>
+    <p>您对保存和备份私钥/助记词、设置安全口令及设备安全负全部责任。因丢失、泄露、被盗或误操作导致的任何损失由您自行承担。</p>
+
+    <h3>5. 禁止行为</h3>
+    <p>不得将本应用用于任何违法、侵权、欺诈、洗钱、恐怖融资、制裁规避、干扰网络或恶意代码传播等行为。我们可在发现异常或违法风险时采取限制或终止措施。</p>
+
+    <h3>6. 费用与税务</h3>
+    <p>某些功能可能收取服务费；链上交易需支付网络矿工费。您负责自行申报并缴纳相关税费。</p>
+
+    <h3>7. 风险提示</h3>
+    <p>加密资产价格波动剧烈，存在技术、市场、合规及操作风险，可能导致资产全部损失。您理解并自担使用本应用的一切风险。</p>
+
+    <h3>8. 第三方服务与网络</h3>
+    <p>本应用可能整合第三方服务（如去中心化交易所、节点、价格服务商）。这些服务由各第三方独立提供并适用其条款与隐私政策；区块链交易公开透明、不可篡改。</p>
+
+    <h3>9. 知识产权</h3>
+    <p>本应用及其内容、商标与文档受知识产权保护。未经授权，不得复制、分发、修改或创建衍生作品。</p>
+
+    <h3>10. 终止</h3>
+    <p>您可随时停止使用并卸载本应用。若您违反条款或存在合规风险，我们可部分或全部暂停或终止服务。</p>
+
+    <h3>11. 免责声明与责任限制</h3>
+    <p>本应用按“现状”提供，不作任何明示或默示担保。在法律允许范围内，我们对因使用或无法使用本应用导致的任何直接、间接、偶发、特殊或后果性损害不承担责任。</p>
+
+    <h3>12. 赔偿</h3>
+    <p>因您违反本条款或法律而引起的第三方索赔、损失或费用，您同意为我们及关联方、员工与合作方进行赔偿并使其免受损害。</p>
+
+    <h3>13. 条款变更</h3>
+    <p>我们可能不时更新条款并在应用内或官网发布。变更生效后，您继续使用即视为接受更新。</p>
+
+    <h3>14. 管辖与争议解决</h3>
+    <p>本条款受[司法辖区]法律管辖，不考虑法律冲突原则。争议应首先友好协商；协商不成的，提交[地点]有管辖权的法院解决。</p>
+
+    <h3>15. 联系我们</h3>
+    <p>如需支持或投诉，请联系：bia72552@gmail.com。</p>
+  `
+}
+
+export const PRIVACY_CONTENT = {
+  en: `
+    <h3>1. Scope</h3>
+    <p>This Privacy Policy explains how Radar Wallet collects, uses, stores, and shares information when you use the app. As a non-custodial wallet, we do not access your private keys or on-chain funds.</p>
+
+    <h3>2. Data We May Collect</h3>
+    <ul>
+      <li><strong>Essential data:</strong> app settings, language, network/chain configuration, address book labels, and preferences (stored locally on your device).</li>
+      <li><strong>Diagnostics and performance (optional, with consent):</strong> crash logs, device info (model, OS version, app version), and aggregated usage analytics.</li>
+      <li><strong>Support and compliance:</strong> when you contact us or opt into regulated services (e.g., fiat ramps/KYC), we may collect the contact or identity information you provide, used solely for that service and processed per legal requirements.</li>
+    </ul>
+
+    <h3>3. Data We Do Not Collect</h3>
+    <p>We do not collect or store your private keys, seed phrases, plaintext passcodes, or precise location unless you grant permission for a specific feature.</p>
+
+    <h3>4. On-Device Storage</h3>
+    <p>Private keys, seed phrases, transaction indexes, and preferences are stored on your device and protected by system encryption/security. We cannot access this data.</p>
+
+    <h3>5. Blockchain Data</h3>
+    <p>Transactions and balances on public blockchains are visible to anyone; this is inherent to blockchain technology.</p>
+
+    <h3>6. Cookies/SDKs and Third Parties</h3>
+    <p>We may use analytics or crash-reporting SDKs to improve the product. If you use integrated third-party services (DEXs, price feeds, payments, fiat ramps), their own privacy policies apply.</p>
+
+    <h3>7. How We Use Data</h3>
+    <p>To provide and maintain features, improve performance and security, respond to support requests, and meet legal obligations (including fraud prevention and sanctions compliance).</p>
+
+    <h3>8. Sharing</h3>
+    <p>We share data only with your consent; to deliver chosen third-party services; to comply with legal obligations or governmental/judicial requests; or to protect rights, safety, and property of us or users.</p>
+
+    <h3>9. International Transfers</h3>
+    <p>Where cross-border processing occurs, we implement appropriate safeguards (such as standard contractual clauses or equivalent mechanisms) in accordance with applicable laws.</p>
+
+    <h3>10. Security</h3>
+    <p>We use industry-standard technical and organizational measures to protect data; however, no system is completely secure. Keep your device and seed phrase safe.</p>
+
+    <h3>11. Retention</h3>
+    <p>We retain data only as long as necessary for the purposes collected or as required by law, then delete or anonymize it.</p>
+
+    <h3>12. Your Rights</h3>
+    <p>Subject to applicable laws, you may request access, correction, deletion, withdraw consent, object/restrict processing, and request data portability. Contact bia72552@gmail.com.</p>
+
+    <h3>13. Children’s Privacy</h3>
+    <p>Our services are not directed to minors. If we learn we collected data from a child without guardian consent, we will delete it.</p>
+
+    <h3>14. Changes</h3>
+    <p>We may update this Policy and will publish changes in the app or on our website. Your continued use after the effective date constitutes acceptance.</p>
+
+    <h3>15. Contact</h3>
+    <p>For privacy inquiries or complaints: bia72552@gmail.com.</p>
+  `,
+  zh: `
+    <h3>1. 适用范围</h3>
+    <p>本隐私政策说明我们如何在您使用 Radar Wallet 时收集、使用、存储与共享信息。非托管架构下，我们不访问您的私钥或链上资金。</p>
+
+    <h3>2. 我们可能收集的数据</h3>
+    <ul>
+      <li><strong>必要数据：</strong>应用设置、语言、网络与链配置、地址簿标签、偏好选项（均存储在您的设备本地）。</li>
+      <li><strong>诊断与性能（可选，经您同意）：</strong>崩溃日志、设备信息（型号、系统版本、应用版本）、使用统计（页面访问与功能使用的匿名汇总）。</li>
+      <li><strong>客服与合规：</strong>当您主动联系我们或申请特定受监管服务（例如法币通道/KYC）时，可能收集您提供的联系方式与身份信息，仅用于对应服务并按合规要求处理。</li>
+    </ul>
+
+    <h3>3. 我们不收集的数据</h3>
+    <p>我们不收集、不存储您的私钥、助记词、明文口令或精确位置信息（除非您授权某项功能需要）。</p>
+
+    <h3>4. 本地存储</h3>
+    <p>您的私钥、助记词、交易记录索引与偏好设置均保存在您的设备本地，并可通过系统加密与安全机制保护。我们无法访问这些数据。</p>
+
+    <h3>5. 区块链数据</h3>
+    <p>您在公共区块链上的交易与地址余额为公开数据，任何人均可查看。这是区块链技术的固有特性。</p>
+
+    <h3>6. Cookies/SDK 与第三方</h3>
+    <p>我们可能使用分析或崩溃统计 SDK 以改进产品；若集成第三方服务（如去中心化交易所、价格源、支付或法币通道），当您使用该服务时将适用其隐私政策。</p>
+
+    <h3>7. 我们如何使用数据</h3>
+    <p>提供与维护功能、改进性能与安全、回复支持请求、履行法律义务（含防欺诈与制裁合规）。</p>
+
+    <h3>8. 数据共享</h3>
+    <p>仅在以下情况下共享：经您同意；为提供您选择的第三方服务；为履行法律义务或政府/司法要求；为保护我们或用户的权利、安全与资产。</p>
+
+    <h3>9. 国际传输</h3>
+    <p>若涉及跨境处理，我们将采取适当的保护措施（如标准合同条款或等效机制），并遵循适用法律。</p>
+
+    <h3>10. 安全</h3>
+    <p>采用行业标准的技术与组织措施保护数据安全；但任何系统均无法保证绝对安全。请妥善保管您的设备与助记词。</p>
+
+    <h3>11. 保留期限</h3>
+    <p>仅在实现收集目的所需时间内保留数据，或在法律要求的期限内保留；到期后将删除或匿名化。</p>
+
+    <h3>12. 您的权利</h3>
+    <p>在适用法律允许范围内，您可请求访问、更正、删除个人数据，撤回同意或反对/限制处理，并可进行数据可携带请求。请通过 bia72552@gmail.com 联系我们。</p>
+
+    <h3>13. 儿童隐私</h3>
+    <p>我们的服务不针对未满法定年龄的用户。若发现未经监护人同意收集到儿童数据，我们将予以删除。</p>
+
+    <h3>14. 政策变更</h3>
+    <p>我们可能更新本政策并在应用内或官网发布。更新生效后，您继续使用即视为接受。</p>
+
+    <h3>15. 联系我们</h3>
+    <p>隐私相关问题或投诉，请联系：bia72552@gmail.com。</p>
+  `
+}

@@ -1,0 +1,21 @@
+import { createPublicClient, http, formatEther } from 'viem'
+import { bsc } from 'viem/chains'
+
+const client = createPublicClient({
+  chain: bsc,
+  transport: http('https://bsc-dataseed1.defibit.io/')
+})
+
+async function checkBalance() {
+  const address = '0x2139366909c41d7fAdd2c3701db57Ca4B5f0224B'
+  console.log(`Checking balance for: ${address}`)
+  
+  try {
+    const balance = await client.getBalance({ address })
+    console.log(`Balance: ${formatEther(balance)} BNB`)
+  } catch (error) {
+    console.error('Error checking balance:', error)
+  }
+}
+
+checkBalance()
