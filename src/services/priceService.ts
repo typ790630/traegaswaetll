@@ -2,24 +2,36 @@ export const priceService = {
   // CoinGecko API (无地区限制，免费)
   async fetchPrices(): Promise<Record<string, number>> {
     try {
-      // 使用 CoinGecko API 获取主流币价格
-      // 无需 API Key，无地区限制
-      // 注意: 在浏览器中可能遇到 CORS 问题，使用 no-cors 模式或降级价格
-      const coingeckoRes = await fetch(
-        'https://api.coingecko.com/api/v3/simple/price?ids=binancecoin,ethereum,matic-network&vs_currencies=usd',
-        { 
-          mode: 'cors',
-          headers: {
-            'Accept': 'application/json'
+      // ⚡ 1. 尝试 Binance API (国内友好，速度快)
+      // 这是一个公开的 API，通常不需要 key，且 CORS 限制较少
+      const binanceRes = await fetch('https://api.binance.com/api/v3/ticker/price?symbols=["BNBUSDT","ETHUSDT"]', {
+        mode: 'cors'
+      }).catch(() => null)
+
+      let bnbPrice = 650
+      let ethPrice = 3000
+
+      if (binanceRes && binanceRes.ok) {
+          const data = await binanceRes.json()
+          const bnb = data.find((item: any) => item.symbol === 'BNBUSDT')
+          const eth = data.find((item: any) => item.symbol === 'ETHUSDT')
+          if (bnb) bnbPrice = parseFloat(bnb.price)
+          if (eth) ethPrice = parseFloat(eth.price)
+          console.log(`[PriceService] ✅ Prices fetched from Binance: BNB=${bnbPrice}, ETH=${ethPrice}`)
+      } else {
+          // ⚡ 2. 失败则尝试 CoinGecko (备用)
+          console.log('[PriceService] Binance API failed, trying CoinGecko...')
+          const coingeckoRes = await fetch(
+            'https://api.coingecko.com/api/v3/simple/price?ids=binancecoin,ethereum,matic-network&vs_currencies=usd',
+            { mode: 'cors' }
+          )
+          
+          if (coingeckoRes.ok) {
+              const data = await coingeckoRes.json()
+              bnbPrice = data.binancecoin?.usd || bnbPrice
+              ethPrice = data.ethereum?.usd || ethPrice
           }
-        }
-      )
-      
-      if (!coingeckoRes.ok) {
-        throw new Error(`CoinGecko API error: ${coingeckoRes.status}`)
       }
-      
-      const coingeckoData = await coingeckoRes.json()
 
       // Fetch RADRS from GeckoTerminal (Real DEX price)
       // Contract: 0xe2188a2e0a41a50f09359e5fe714d5e643036f2a (BSC)
@@ -35,16 +47,16 @@ export const priceService = {
         }
       } catch (e) {
         // ✅ 降低日志级别，避免控制台噪音
-        console.log('[PriceService] RADRS price API unavailable, using fallback')
+        // console.log('[PriceService] RADRS price API unavailable, using fallback')
         // Jitter fallback
         radrsPrice = 0.14505 + (Math.random() * 0.002 - 0.001)
       }
 
       return {
-        'BNB': coingeckoData.binancecoin?.usd || 650,
+        'BNB': bnbPrice,
         'USDT': 1.00, // Stablecoin
-        'ETH': coingeckoData.ethereum?.usd || 3000,
-        'MATIC': coingeckoData['matic-network']?.usd || 0.8,
+        'ETH': ethPrice,
+        'MATIC': 0.8, // 暂时硬编码
         'RADRS': radrsPrice
       }
     } catch (error) {
