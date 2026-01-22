@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: 🔍 Debug - Show environment
+      - name: Debug - Show environment
         run: |
           echo "Working directory: $(pwd)"
           echo "Files in root:"
@@ -21,44 +21,44 @@ jobs:
           echo "Node version: $(node --version || echo 'not installed')"
           echo "npm version: $(npm --version || echo 'not installed')"
       
-      - name: 🟢 Setup Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
       
-      - name: 🔍 Debug - After Node setup
+      - name: Debug - After Node setup
         run: |
           echo "Node version: $(node --version)"
           echo "npm version: $(npm --version)"
           echo "Check package files:"
           ls -la package*.json .npmrc 2>/dev/null || echo "Some files missing"
       
-      - name: ☕ Setup Java
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
       
-      - name: 📱 Setup Android SDK
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
       
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: |
           echo "Installing dependencies with --legacy-peer-deps..."
           npm install --legacy-peer-deps --verbose
       
-      - name: 🔍 Debug - After npm install
+      - name: Debug - After npm install
         run: |
           echo "node_modules exists: $([ -d node_modules ] && echo 'yes' || echo 'no')"
           echo "Key packages:"
           ls -la node_modules/vite node_modules/react node_modules/@capacitor 2>/dev/null || echo "Some packages missing"
       
-      - name: 🏗️ Build web assets
+      - name: Build web assets
         run: |
           echo "Building web assets..."
           npm run build
       
-      - name: 🔍 Debug - After web build
+      - name: Debug - After web build
         run: |
           echo "dist exists: $([ -d dist ] && echo 'yes' || echo 'no')"
           if [ -d dist ]; then
@@ -66,12 +66,12 @@ jobs:
             ls -la dist/
           fi
       
-      - name: 🔄 Sync Capacitor
+      - name: Sync Capacitor
         run: |
           echo "Syncing Capacitor..."
           npx cap sync android
       
-      - name: 🔍 Debug - After Capacitor sync
+      - name: Debug - After Capacitor sync
         run: |
           echo "android folder exists: $([ -d android ] && echo 'yes' || echo 'no')"
           echo "gradlew exists: $([ -f android/gradlew ] && echo 'yes' || echo 'no')"
@@ -80,21 +80,21 @@ jobs:
             ls -la android/app/src/main/assets/public/ | head -20
           fi
       
-      - name: 🤖 Build Android APK
+      - name: Build Android APK
         working-directory: ./android
         run: |
           chmod +x gradlew
           echo "Building APK..."
           ./gradlew assembleRelease --no-daemon --stacktrace
       
-      - name: 📤 Upload APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         if: success()
         with:
           name: app-release
           path: android/app/build/outputs/apk/release/*.apk
       
-      - name: 📊 Build Summary
+      - name: Build Summary
         if: always()
         run: |
           echo "## Build Summary" >> $GITHUB_STEP_SUMMARY

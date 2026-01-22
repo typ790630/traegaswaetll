@@ -1,0 +1,36 @@
+name: Test Simple Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: List files
+        run: ls -la
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Check Node
+        run: |
+          node --version
+          npm --version
+      
+      - name: Check package files
+        run: |
+          cat package.json
+          cat .npmrc
+      
+      - name: Test npm install
+        run: npm install --legacy-peer-deps
+      
+      - name: Success
+        run: echo "All basic steps completed successfully!"
