@@ -1,0 +1,22 @@
+{
+  "build": {
+    "preview": {
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "release-apk": {
+      "android": {
+        "buildType": "apk",
+        "withoutCredentials": true,
+        "image": "latest"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle",
+        "image": "latest"
+      }
+    }
+  }
+}
