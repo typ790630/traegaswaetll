@@ -59,9 +59,9 @@ export default function AssetDetail() {
                   ≈ ${(parseFloat(asset.balance) * asset.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
           )}
-          {asset.isGas && (
+          {/* {asset.isGas && (
               <Badge variant="warning" className="mt-2">Gas Token</Badge>
-          )}
+          )} */}
       </div>
 
       {/* Address */}

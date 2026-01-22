@@ -1,3 +1,20 @@
+/**
+ * ⚠️⚠️⚠️ DEPRECATED - 此文件已废弃 ⚠️⚠️⚠️
+ * 
+ * 本文件包含 Account Abstraction (AA) 相关代码，已不再使用。
+ * 当前钱包架构：Pure EOA（纯 EOA 钱包）
+ * 
+ * 废弃原因：
+ * 1. 钱包已改为纯 EOA 架构
+ * 2. 所有交易直接用 EOA 私钥签名
+ * 3. Gas 费用 BNB 支付（不使用 Paymaster）
+ * 
+ * 迁移完成日期：2026-01-22
+ * 
+ * ⚠️ 不要在新代码中使用此 Service！
+ * ⚠️ 所有推荐系统功能已迁移到 ReferralService（EOA 版本）
+ */
+
 import { createPublicClient, http, Hex, encodeFunctionData, parseAbi, formatEther } from 'viem'
 import { bsc } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'

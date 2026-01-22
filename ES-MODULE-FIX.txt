@@ -1,0 +1,33 @@
+========================================
+  ES Module 问题已修复
+========================================
+
+问题说明：
+----------
+项目使用了 ES Module (package.json 中有 "type": "module")
+测试脚本使用了 CommonJS 语法 (require)
+导致 "require is not defined" 错误
+
+解决方案：
+----------
+✅ 已将所有测试脚本改为 .cjs 扩展名
+✅ 已更新所有批处理文件指向 .cjs 文件
+
+文件更新：
+----------
+删除：
+  - quick-test.js → 改为 quick-test.cjs
+  - test-api-connection.js → 改为 test-api-connection.cjs
+
+更新：
+  - quick-test.bat → 使用 quick-test.cjs
+  - test-api.bat → 使用 test-api-connection.cjs
+  - test-api-simple.bat → 使用 test-api-connection.cjs
+
+现在可以正常运行了！
+----------
+
+运行测试：
+双击 quick-test.bat
+
+========================================

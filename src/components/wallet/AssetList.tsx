@@ -108,9 +108,9 @@ export function AssetList() {
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-text-primary">{asset.symbol}</span>
-                  {asset.isGas && (
+                  {/* {asset.isGas && (
                     <Badge variant="warning" className="text-[10px] h-5 px-1.5">Gas</Badge>
-                  )}
+                  )} */}
                 </div>
                 {!asset.isGas && (
                   <div className="flex flex-col">
@@ -120,7 +120,8 @@ export function AssetList() {
                 )}
                 {asset.isGas && (
                   <div className="flex flex-col">
-                     <span className="text-xs text-status-warning/80">{t('wallet.usedForGas')}</span>
+                     {/* <span className="text-xs text-status-warning/80">{t('wallet.usedForGas')}</span> */}
+                     <span className="text-xs text-text-secondary">{asset.name}</span>
                      {asset.price && <span className="text-[10px] text-status-success font-medium">${Number(asset.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</span>}
                   </div>
                 )}

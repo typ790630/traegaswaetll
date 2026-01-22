@@ -18,6 +18,9 @@ const en = {
     paidIn: 'Paid in {{token}}',
     insufficientBalance: 'Insufficient {{token}} balance',
     unlock: 'Unlock',
+    iUnderstand: 'I Understand',
+    verify: 'Verify',
+    getStarted: 'Get Started',
   },
   splash: {
     slogan: 'Secure · Non-Custodial · Global',
@@ -45,6 +48,22 @@ const en = {
     decimals: 'Decimals',
     invalidAddress: 'Invalid Contract Address',
     tokenNotFound: 'Token not found or network error',
+    create: {
+      nameTitle: 'Name Your Wallet',
+      nameDesc: 'Give your new wallet a nickname to recognize it easily.',
+      walletNamePlaceholder: 'Wallet Name',
+      secureTitle: 'Secure Your Wallet',
+      secureDesc: "Don't risk losing your funds. protect your wallet by saving your Secret Recovery Phrase in a place you trust.",
+      loseWarning: 'If you lose your secret phrase, your funds will be lost forever.',
+      writeDown: 'Write it down and store it in a secure offline location.',
+      backupTitle: 'Write Down Your Seed Phrase',
+      backupDesc: 'This is your Secret Recovery Phrase. Write it down on a paper and keep it in a safe place.',
+      verifyTitle: 'Verify Seed Phrase',
+      verifyDesc: 'Tap the words in the correct order to verify your Secret Recovery Phrase.',
+      incorrectOrder: 'Incorrect order! Please try again.',
+      successTitle: 'All Done!',
+      successDesc: 'Your wallet has been created and secured.',
+    },
     help: {
         title: 'Wallet & Account Types',
         mainWallet: 'Main Wallet',
@@ -227,6 +246,14 @@ const en = {
     copyMnemonic: 'Copy Seed Phrase',
     privateKeyWarning: 'This Private Key controls ONLY the current account ({{name}}). Do not share it.',
     copyPrivateKey: 'Copy Private Key',
+  },
+  qrScanner: {
+    title: 'Scan QR Code',
+    instruction: 'Align the QR code within the frame to scan',
+    scanImage: 'Scan an Image File',
+    permissionDenied: 'Camera access needed',
+    requestPermission: 'Request Camera Permissions',
+    error: 'Failed to scan image'
   }
 };
 
@@ -247,6 +274,9 @@ const zh = {
     paidIn: '使用 {{token}} 支付',
     insufficientBalance: '{{token}} 余额不足',
     unlock: '解锁',
+    iUnderstand: '我已了解',
+    verify: '验证',
+    getStarted: '开始使用',
   },
   splash: {
     slogan: '安全 · 非托管 · 全球化',
@@ -274,6 +304,22 @@ const zh = {
     decimals: '精度',
     invalidAddress: '无效的合约地址',
     tokenNotFound: '未找到代币或网络错误',
+    create: {
+      nameTitle: '命名您的钱包',
+      nameDesc: '为您的新钱包取一个昵称，方便识别。',
+      walletNamePlaceholder: '钱包名称',
+      secureTitle: '保护您的钱包',
+      secureDesc: '不要冒着失去资金的风险。请将您的秘密恢复短语保存在您信任的地方来保护您的钱包。',
+      loseWarning: '如果您丢失了助记词，您的资金将永久丢失。',
+      writeDown: '请将其抄写并保存在安全的离线位置。',
+      backupTitle: '抄写您的助记词',
+      backupDesc: '这是您的秘密恢复短语。请将其抄写在纸上并保存在安全的地方。',
+      verifyTitle: '验证助记词',
+      verifyDesc: '按正确的顺序点击单词以验证您的秘密恢复短语。',
+      incorrectOrder: '顺序不正确！请重试。',
+      successTitle: '全部完成！',
+      successDesc: '您的钱包已创建并受到保护。',
+    },
     help: {
         title: '钱包与账户说明',
         mainWallet: '主钱包',
@@ -456,6 +502,14 @@ const zh = {
     copyMnemonic: '复制助记词',
     privateKeyWarning: '此私钥仅控制当前账户 ({{name}})。切勿将其分享给任何人。',
     copyPrivateKey: '复制私钥',
+  },
+  qrScanner: {
+    title: '扫描二维码',
+    instruction: '将二维码对准框内以扫描',
+    scanImage: '扫描图片文件',
+    permissionDenied: '需要相机权限',
+    requestPermission: '请求相机权限',
+    error: '扫描图片失败'
   }
 };
 
@@ -466,11 +520,22 @@ i18n
       en: { translation: en },
       zh: { translation: zh },
     },
-    lng: 'zh', // Default to Chinese as requested "all pages to Chinese"
-    fallbackLng: 'en',
+    lng: 'zh', // ✅ 强制默认中文
+    fallbackLng: 'zh', // ✅ 降级语言也是中文
+    detection: {
+      order: ['localStorage', 'navigator'],
+      caches: ['localStorage'],
+      lookupLocalStorage: 'i18nextLng',
+    },
     interpolation: {
       escapeValue: false,
     },
   });
+
+// ✅ 确保初始化后设置为中文（防止 localStorage 覆盖）
+if (!localStorage.getItem('i18nextLng') || localStorage.getItem('i18nextLng') === 'en') {
+  localStorage.setItem('i18nextLng', 'zh');
+  i18n.changeLanguage('zh');
+}
 
 export default i18n;

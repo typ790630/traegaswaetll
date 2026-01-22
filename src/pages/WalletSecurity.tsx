@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, Copy, Eye, ShieldCheck, Key } from "lucide-react"
 import { Button } from "../components/ui/button"
@@ -6,6 +6,8 @@ import { Card, CardContent } from "../components/ui/card"
 import { useAppStore } from "../store/useAppStore"
 import { useTranslation } from "react-i18next"
 import { SecurityGate } from "../components/security/SecurityGate"
+import { mnemonicToSeedSync } from '@scure/bip39'
+import { HDKey } from '@scure/bip32'
 
 export default function WalletSecurity() {
   const { t } = useTranslation()
@@ -18,93 +20,38 @@ export default function WalletSecurity() {
   const [showSensitive, setShowSensitive] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  // Mock data generation
-  const mnemonic = wallet?.mnemonic?.split(" ") || "abandon ability able about above absent absorb abstract absurd abuse access accident".split(" ")
+  // ⚡ Pure EOA: 从助记词派生真实私钥
+  // 🚨 如果没有助记词，显示错误而不是假的助记词
+  const mnemonic = wallet?.mnemonic?.split(" ") || null
   
-  const generateMockKey = (addr: string) => {
-      // Should not be called anymore if logic is correct, but kept for legacy safety
-      if (!addr) return ""
-      const seed = addr.toLowerCase().replace('0x', '')
-      const part1 = seed.substring(0, 16)
-      const part2 = seed.substring(16, 32)
-      const part3 = seed.substring(32)
-      return `0x${part3}${part1}${part2}9d1e5f4a`.padEnd(66, '0')
-  }
-  
-  // Use EOA address for private key generation if available (Correct AA logic)
-  // Fallback ONLY if EOA is missing (which shouldn't happen with new wallets)
-  const privateKey = wallet?.eoaAddress 
-    ? generateMockKey(wallet.eoaAddress) 
-    : ""
-
-  // If wallet has a real mnemonic (new format), derive key from it instead of mock
-  // This supports the P0 fix for "Real BIP39"
-  // We can't easily re-derive here without async or importing the whole bip39 stack which might be heavy for render
-  // But wait, we need to show the PRIVATE KEY corresponding to the EOA.
-  // The current mock generation is: mockKey(eoaAddress).
-  // The new createWallet logic stores `eoaAddress` derived from `mnemonic`.
-  // So `generateMockKey(wallet.eoaAddress)` will still produce A key, but it won't be the MATHEMATICALLY CORRECT key derived from the mnemonic.
-  // It will be a "deterministic fake key" that generates the EOA address IF we used the mock logic.
-  // BUT: createWallet now uses `privateKeyToAccount` from a REAL private key.
-  // So `generateMockKey` will produce a key that DOES NOT match the EOA address on-chain.
-  // FIX: We need to store the private key in the wallet object (encrypted ideally, but for now in state) OR re-derive it.
-  // Since we don't store private key in wallet state (security), we should re-derive from mnemonic if available.
-  
-  // However, for this specific task (fixing white screen/logic), let's just make sure it doesn't crash.
-  // The user asked to fix "New wallet/account is mock generated". I did that in store.
-  // Now I need to update this view to show the REAL key if possible, or at least not crash.
-  
-  // For the purpose of this specific P0 task (Store update), I will leave this visual display as "Mock Key based on EOA" for now
-  // UNLESS I want to implement full re-derivation here.
-  // Given the constraints and the risk of breaking UI with heavy imports, I will stick to the Store fix first.
-  // Wait, if I changed the store to use real crypto, `wallet.mnemonic` is now real.
-  // But `wallet.eoaAddress` is real.
-  // `generateMockKey(realEOA)` will produce a string that looks like a key but IS NOT the key for that EOA.
-  // This is confusing for the user if they try to import it elsewhere.
-  // But I cannot easily import `mnemonicToSeedSync` here without making this component heavy/async.
-  // Let's assume for now the user just wants the "Creation" to be robust.
-  // I will leave this file as is regarding the key display logic, as it's a "View" issue, not a "Core Logic" issue for the chain interaction.
-  // The chain interaction uses `AAService` which uses `getPrivateKey`.
-  // Wait, `Referral.tsx` and `Send.tsx` use `getPrivateKey` which calls `generateMockKey`!
-  // THIS IS CRITICAL.
-  // If I changed `createWallet` to use REAL keys, but `getPrivateKey` still uses `generateMockKey`,
-  // Then the transaction signing will FAIL because the key won't match the address on chain.
-  // I MUST update `generateMockKey` or the usage of it to use the real mnemonic if available.
-  
-  // Let's look at `Referral.tsx` again.
-  // It has:
-  /*
-  const getPrivateKey = () => {
-      if (wallet?.eoaAddress) {
-          return generateMockKey(wallet.eoaAddress)
-      } ...
-  }
-  */
-  
-  // I need to change this globally.
-  // But I can't easily change `generateMockKey` to be "inverse of account creation" because hashing is one-way.
-  // SOLUTION: I must store the private key (or seed) in the wallet state for this prototype, OR re-derive from mnemonic everywhere.
-  // Re-deriving from mnemonic everywhere is safer but requires `bip39` imports in every page.
-  // BETTER: Add `privateKey` to the Wallet interface (marked as sensitive) since this is a local wallet.
-  // I already updated `Wallet` interface? No, I updated `AppState` but not the interface definition in `types.ts` or `store`.
-  // Let's check `store/useAppStore.ts` again. I see `mnemonic` is there.
-  
-  // Strategy:
-  // 1. I already updated `createWallet` in `useAppStore` to generate real mnemonic and address.
-  // 2. I need to update `Referral.tsx`, `Send.tsx`, `Swap.tsx` to derive key from mnemonic if available, instead of `generateMockKey`.
-  // 3. To avoid code duplication, I should export a helper `getPrivateKeyFromWallet(wallet)` in `utils` or `store`.
-  
-  // But first, let's just make `WalletSecurity` not crash.
-  // It uses `wallet.mnemonic` which is fine.
-  // It uses `generateMockKey` which is "wrong" but "safe" (won't crash, just shows wrong key).
-  
-  // I will proceed with the Store fix I just did.
-  // And I will add a `getPrivateKeyFromWallet` helper in `useAppStore` or similar to handle the derivation.
-  
-  // Actually, I should update `useAppStore` to include a helper `getPrivateKey(walletId)` that does the work.
-  
-  // Let's update `useAppStore.ts` to export the helper.
-
+  // 使用 useMemo 缓存派生结果（避免重复计算）
+  const privateKey = useMemo(() => {
+    if (!wallet?.mnemonic) {
+      console.warn('[WalletSecurity] ⚠️ No mnemonic found')
+      return ""
+    }
+    
+    try {
+      // ⚡ 从助记词派生真实私钥
+      const seed = mnemonicToSeedSync(wallet.mnemonic)
+      const hdkey = HDKey.fromMasterSeed(seed)
+      const path = `m/44'/60'/0'/0/0` // ETH 标准路径
+      const derivedKey = hdkey.derive(path)
+      
+      // 浏览器兼容：使用 Array.from 代替 Buffer
+      const privateKeyBytes = derivedKey.privateKey!
+      const privateKeyHex = Array.from(privateKeyBytes)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
+      
+      const pk = `0x${privateKeyHex}`
+      console.log('[WalletSecurity] ✅ Private key derived from mnemonic')
+      return pk
+    } catch (error) {
+      console.error('[WalletSecurity] ❌ Failed to derive private key:', error)
+      return ""
+    }
+  }, [wallet?.mnemonic])
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -156,38 +103,83 @@ export default function WalletSecurity() {
 
         {activeTab === 'mnemonic' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <div className="bg-status-warning/10 p-4 rounded-xl flex gap-3 border border-status-warning/20">
-                    <ShieldCheck className="w-5 h-5 text-status-warning shrink-0" />
-                    <p className="text-xs text-text-secondary leading-relaxed">
-                        {t('security.mnemonicWarning', 'This Secret Recovery Phrase is the master key to your wallet. It can recover all accounts. Never share it with anyone.')}
-                    </p>
-                </div>
-
-                <div className="relative group">
-                    <div className={`grid grid-cols-3 gap-3 p-4 bg-background-tertiary rounded-xl border border-divider ${!showSensitive ? 'blur-md' : ''}`}>
-                        {mnemonic.map((word, index) => (
-                            <div key={index} className="flex gap-2 items-center bg-background-primary/50 p-2 rounded-lg">
-                                <span className="text-xs text-text-secondary w-4">{index + 1}.</span>
-                                <span className="font-mono font-medium text-sm">{word}</span>
+                {!mnemonic ? (
+                    // 🚨 没有助记词的警告
+                    <div className="space-y-4">
+                        <div className="bg-status-error/10 p-6 rounded-xl flex flex-col gap-4 border-2 border-status-error/30">
+                            <div className="flex items-center gap-3">
+                                <ShieldCheck className="w-6 h-6 text-status-error shrink-0" />
+                                <h3 className="text-lg font-bold text-status-error">
+                                    {t('security.noMnemonic', '未找到助记词')}
+                                </h3>
                             </div>
-                        ))}
-                    </div>
-                    
-                    {!showSensitive && (
-                        <div className="absolute inset-0 flex items-center justify-center z-10 cursor-pointer" onClick={() => setShowSensitive(true)}>
-                            <div className="bg-background-primary px-4 py-2 rounded-full shadow-lg border border-divider flex items-center gap-2">
-                                <Eye className="w-4 h-4" />
-                                <span className="text-sm font-bold">{t('security.tapToReveal', 'Tap to Reveal')}</span>
+                            <div className="space-y-2 text-sm text-text-secondary">
+                                <p>⚠️ 此钱包没有助记词，无法恢复！</p>
+                                <p>可能的原因：</p>
+                                <ul className="list-disc list-inside space-y-1 ml-2">
+                                    <li>钱包数据来自旧版本</li>
+                                    <li>使用了浏览器缓存的数据</li>
+                                    <li>钱包创建时出错</li>
+                                </ul>
+                                <p className="font-bold text-status-error mt-3">
+                                    🚨 强烈建议：创建新钱包或导入已有助记词！
+                                </p>
                             </div>
                         </div>
-                    )}
-                </div>
+                        <div className="flex gap-3">
+                            <Button 
+                                variant="primary" 
+                                className="flex-1"
+                                onClick={() => navigate('/settings/create-wallet')}
+                            >
+                                创建新钱包
+                            </Button>
+                            <Button 
+                                variant="secondary" 
+                                className="flex-1"
+                                onClick={() => navigate('/settings/import-wallet')}
+                            >
+                                导入钱包
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    // ✅ 正常显示助记词
+                    <>
+                        <div className="bg-status-warning/10 p-4 rounded-xl flex gap-3 border border-status-warning/20">
+                            <ShieldCheck className="w-5 h-5 text-status-warning shrink-0" />
+                            <p className="text-xs text-text-secondary leading-relaxed">
+                                {t('security.mnemonicWarning', 'This Secret Recovery Phrase is the master key to your wallet. It can recover all accounts. Never share it with anyone.')}
+                            </p>
+                        </div>
 
-                {showSensitive && (
-                    <Button variant="secondary" className="w-full" onClick={() => handleCopy(mnemonic.join(" "))}>
-                        <Copy className="w-4 h-4 mr-2" />
-                        {copied ? t('common.copied', 'Copied') : t('security.copyMnemonic', 'Copy Seed Phrase')}
-                    </Button>
+                        <div className="relative group">
+                            <div className={`grid grid-cols-3 gap-3 p-4 bg-background-tertiary rounded-xl border border-divider ${!showSensitive ? 'blur-md' : ''}`}>
+                                {mnemonic.map((word, index) => (
+                                    <div key={index} className="flex gap-2 items-center bg-background-primary/50 p-2 rounded-lg">
+                                        <span className="text-xs text-text-secondary w-4">{index + 1}.</span>
+                                        <span className="font-mono font-medium text-sm">{word}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            {!showSensitive && (
+                                <div className="absolute inset-0 flex items-center justify-center z-10 cursor-pointer" onClick={() => setShowSensitive(true)}>
+                                    <div className="bg-background-primary px-4 py-2 rounded-full shadow-lg border border-divider flex items-center gap-2">
+                                        <Eye className="w-4 h-4" />
+                                        <span className="text-sm font-bold">{t('security.tapToReveal', 'Tap to Reveal')}</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {showSensitive && (
+                            <Button variant="secondary" className="w-full" onClick={() => handleCopy(mnemonic.join(" "))}>
+                                <Copy className="w-4 h-4 mr-2" />
+                                {copied ? t('common.copied', 'Copied') : t('security.copyMnemonic', 'Copy Seed Phrase')}
+                            </Button>
+                        )}
+                    </>
                 )}
             </div>
         )}

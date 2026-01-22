@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import { ArrowLeft, ArrowRight, ScanLine, AlertCircle, ChevronDown, Info } from "lucide-react"
+import { ArrowLeft, ArrowRight, ScanLine, AlertCircle } from "lucide-react"
 import { useAppStore } from "../store/useAppStore"
 import { FEES, GAS_TOKEN_SYMBOL } from "../config/fees"
 import { Button } from "../components/ui/button"
@@ -10,12 +10,15 @@ import { Sheet } from "../components/ui/sheet"
 import { Badge } from "../components/ui/badge"
 import { useTranslation } from "react-i18next"
 import { ReferralPromo } from "../components/ReferralPromo"
-import { AAService } from "../services/AAService"
-import { generateMockKey } from "../lib/utils"
-import { parseEther, formatEther, createPublicClient, http } from "viem"
+import { QrScanner } from "../components/QrScanner"
+import { parseEther, formatEther, createWalletClient, http, encodeFunctionData } from "viem"
+import { privateKeyToAccount } from "viem/accounts"
 import { bsc } from "viem/chains"
-import { toSimpleSmartAccount } from "permissionless/accounts"
 import { RADRS_CONFIG } from "../config/radrs"
+import { publicClient } from "../services/radrsService"
+
+// ⚡⚡⚡ 极速配置  
+const MIN_GAS_BNB = 0.0005 // 实际需要 ~0.0003-0.0005 BNB
 
 export default function Send() {
   const { t } = useTranslation()
@@ -23,7 +26,7 @@ export default function Send() {
   const [searchParams] = useSearchParams()
   const assetParam = searchParams.get('asset')
   
-  const { getCurrentNetwork, addActivity, updateAssetBalance, getCurrentWallet, getPrivateKey: getStorePrivateKey } = useAppStore()
+  const { getCurrentNetwork, addActivity, updateAssetBalance, getCurrentWallet, getPrivateKey: getStorePrivateKey, fetchRealBalances } = useAppStore()
   const network = getCurrentNetwork()
   const wallet = getCurrentWallet()
   
@@ -36,61 +39,20 @@ export default function Send() {
   const [amount, setAmount] = useState("")
   const [showConfirm, setShowConfirm] = useState(false)
   const [isSending, setIsSending] = useState(false)
-  const [smartAccountBnbBalance, setSmartAccountBnbBalance] = useState<string>("")
-  const [smartAccountAddress, setSmartAccountAddress] = useState<string>("")
-  const [isCheckingBalance, setIsCheckingBalance] = useState(false)
+  const [showScanner, setShowScanner] = useState(false)
 
   const selectedAsset = network?.assets.find(a => a.symbol === selectedAssetSymbol)
-  const gasAsset = network?.assets.find(a => a.symbol === GAS_TOKEN_SYMBOL)
-  const hasEnoughGas = gasAsset ? parseFloat(gasAsset.balance) >= FEES.SEND_RADRS : false
-  const hasEnoughBnbInSmartAccount = parseFloat(smartAccountBnbBalance || "0") >= 0.001
+  
+  // ⚡⚡⚡ Gas 费检查
+  const gasAsset = network?.assets.find(a => a.symbol === 'BNB')
+  const hasEnoughGas = gasAsset ? parseFloat(gasAsset.balance) >= MIN_GAS_BNB : false
+  const selectedAssetBalance = selectedAsset?.balance || "0"
 
   const assetOptions = network?.assets.map(a => ({
     value: a.symbol,
     label: a.symbol,
     icon: <div className="flex items-center justify-center w-5 h-5 rounded-full bg-background-primary text-[10px] font-bold border border-divider">{a.symbol[0]}</div>
   })) || []
-
-  // 檢查智能賬戶餘額
-  useEffect(() => {
-    const checkSmartAccountBalance = async () => {
-      try {
-        const pk = getPrivateKey()
-        if (!pk) return
-        
-        setIsCheckingBalance(true)
-        
-        const publicClient = createPublicClient({
-          chain: bsc,
-          transport: http(RADRS_CONFIG.rpcUrl)
-        })
-        
-        const signer = AAService.getSigner(pk as `0x${string}`)
-        const simpleAccount = await toSimpleSmartAccount({
-          client: publicClient,
-          owner: signer,
-          entryPoint: {
-            address: RADRS_CONFIG.entryPointAddress as `0x${string}`,
-            version: "0.6"
-          },
-          factoryAddress: RADRS_CONFIG.factoryAddress as `0x${string}`,
-        })
-        
-        const balance = await publicClient.getBalance({ address: simpleAccount.address })
-        setSmartAccountBnbBalance(formatEther(balance))
-        setSmartAccountAddress(simpleAccount.address)
-        
-        console.log('智能賬戶地址:', simpleAccount.address)
-        console.log('智能賬戶 BNB 餘額:', formatEther(balance), 'BNB')
-      } catch (error) {
-        console.error('檢查智能賬戶餘額失敗:', error)
-      } finally {
-        setIsCheckingBalance(false)
-      }
-    }
-    
-    checkSmartAccountBalance()
-  }, [])
 
   const validateAddress = (addr: string) => {
     if (!addr) return false
@@ -106,10 +68,6 @@ export default function Send() {
 
   const handleNext = () => {
     const isValid = validateAddress(address)
-    if (!hasEnoughBnbInSmartAccount) {
-      alert(t('send.insufficientSmartAccountBnb', `智能賬戶 BNB 餘額不足！\n\n當前餘額: ${smartAccountBnbBalance} BNB\n需要至少: 0.001 BNB\n\n請向智能賬戶地址轉入至少 0.005 BNB：\n${smartAccountAddress}`))
-      return
-    }
     if (isValid && amount && hasEnoughGas) setShowConfirm(true)
   }
 
@@ -124,78 +82,229 @@ export default function Send() {
     if (!network || !selectedAssetSymbol || !selectedAsset) return
     
     setIsSending(true)
+    const totalStartTime = Date.now()
+    console.log('[Send] ⚡⚡⚡ Starting send transaction...')
     
     try {
         const pk = getPrivateKey()
-        if (!pk) throw new Error("No private key found")
-
-        // Construct UserOperation via AAService
-        let txHash = ""
-        const signer = AAService.getSigner(pk as `0x${string}`)
+        if (!pk) throw new Error("私钥未找到")
         
-        // Convert amount to BigInt (assuming 18 decimals for now)
+        const account = privateKeyToAccount(pk as `0x${string}`)
+        
+        // ⚡⚡⚡ 安全检查：确认地址匹配
+        console.log(`[Send] 🔐 Security check:`)
+        console.log(`[Send]   Account address: ${account.address}`)
+        console.log(`[Send]   Wallet address:  ${wallet?.address}`)
+        if (account.address.toLowerCase() !== wallet?.address.toLowerCase()) {
+            throw new Error(`❌ 地址不匹配！\n\n派生地址: ${account.address}\n存储地址: ${wallet?.address}\n\n请检查助记词是否正确`)
+        }
+        console.log(`[Send] ✅ Address verified`)
+        
+        // ⚡⚡⚡ 实时获取 BNB 余额（避免使用缓存数据）
+        console.log('[Send] ⚡ Fetching real-time BNB balance...')
+        const bnbBalanceWei = await publicClient.getBalance({ address: account.address })
+        const bnbBalance = parseFloat(formatEther(bnbBalanceWei))
+        console.log(`[Send] Real BNB balance: ${bnbBalance.toFixed(6)} BNB`)
+        
+        // ⚡⚡⚡ 预检查 Gas 费（防止链上失败）
+        const estimatedGasLimit = selectedAsset.contractAddress ? (selectedAssetSymbol === 'RADRS' ? 120000 : 80000) : 21000
+        const baseGasPrice = await publicClient.getGasPrice()
+        const fastGasPrice = (baseGasPrice * 200n) / 100n
+        const estimatedGasCost = parseFloat(formatEther(BigInt(estimatedGasLimit) * fastGasPrice))
+        
+        console.log(`[Send] Estimated Gas: ${estimatedGasLimit}, Price: ${formatEther(fastGasPrice)} Gwei, Cost: ${estimatedGasCost.toFixed(6)} BNB`)
+        
+        if (bnbBalance < estimatedGasCost) {
+            throw new Error(`BNB 余额不足支付 Gas 费\n\n当前 BNB: ${bnbBalance.toFixed(6)}\n需要 Gas: ${estimatedGasCost.toFixed(6)} BNB\n缺少: ${(estimatedGasCost - bnbBalance).toFixed(6)} BNB\n\n建议: 充值至少 ${Math.ceil((estimatedGasCost - bnbBalance + 0.001) * 1000) / 1000} BNB`)
+        }
+        
+        if (bnbBalance < estimatedGasCost * 1.2) {
+            console.warn(`[Send] ⚠️ BNB balance is tight: ${bnbBalance.toFixed(6)} BNB, estimated cost: ${estimatedGasCost.toFixed(6)} BNB`)
+        }
+        
+        // ⚡⚡⚡ 极速钱包客户端
+        const client = createWalletClient({
+            account,
+            chain: bsc,
+            transport: http(RADRS_CONFIG.rpcUrl)
+        })
+
         const amountWei = parseEther(amount)
+        const selectedAssetBalance = parseFloat(selectedAsset.balance || "0")
+        let txHash: `0x${string}`
 
         if (selectedAsset.contractAddress) {
-            // ERC20 Transfer (Now handles approve internally in sendToken)
-            txHash = await AAService.sendToken(
-                signer, 
-                selectedAsset.contractAddress, 
-                address, 
-                amountWei
-            )
-        } else {
-            // Native Token Transfer (BNB/ETH)
-            // Supported now via sendNative
-             if (selectedAssetSymbol === 'BNB' || selectedAssetSymbol === 'ETH' || selectedAssetSymbol === 'MATIC') {
-                  txHash = await AAService.sendNative(
-                      signer,
-                      address,
-                      amountWei
-                  )
+             // ===== ERC20 Transfer =====
+             console.log('[Send] ERC20 transfer')
+             
+             // ⚡⚡⚡ 使用已获取的 Gas Price（200% 加速）
+             console.log(`[Send] ⚡ Using 200% Gas: ${formatEther(fastGasPrice)} Gwei`)
+             
+             // ⚡⚡⚡ 优化 Gas Limit（RADRS 税收代币需要更高）
+             const erc20GasLimit = BigInt(estimatedGasLimit)
+             
+             // Encode Transfer
+             const data = encodeFunctionData({
+                abi: [{
+                    name: 'transfer',
+                    type: 'function',
+                    stateMutability: 'nonpayable',
+                    inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }],
+                    outputs: [{ name: '', type: 'bool' }]
+                }],
+                functionName: 'transfer',
+                args: [address as `0x${string}`, amountWei]
+             })
+             
+             // ⚡⚡⚡ OPTIMIZATION: Skip simulation for small transfers to save ~300ms
+             const shouldSimulate = parseFloat(amount) > selectedAssetBalance * 0.5
+             
+             if (shouldSimulate) {
+                 try {
+                     const simStartTime = Date.now()
+                     await publicClient.call({
+                         account,
+                         to: selectedAsset.contractAddress as `0x${string}`,
+                         data,
+                         value: 0n,
+                         gas: erc20GasLimit,
+                         gasPrice: fastGasPrice
+                     })
+                     console.log(`[Send] ⚡ Simulation passed (${Date.now() - simStartTime}ms)`)
+                 } catch (simError: any) {
+                     console.warn("[Send] Simulation failed", simError)
+                     if (simError.message.includes('insufficient funds')) {
+                          throw new Error(`${selectedAssetSymbol} 余额不足或 BNB Gas 费不足`)
+                     }
+                 }
              } else {
-                 throw new Error(`Unsupported asset type: ${selectedAssetSymbol}`)
+                 console.log(`[Send] ⚡ Skipped simulation (amount < 50% of balance, saved ~300ms)`)
              }
+
+             // Send Transaction
+             const txStartTime = Date.now()
+             txHash = await client.sendTransaction({
+                to: selectedAsset.contractAddress as `0x${string}`,
+                data,
+                value: 0n,
+                gas: erc20GasLimit,
+                gasPrice: fastGasPrice
+             })
+             console.log(`[Send] ⚡ ERC20 tx sent (${Date.now() - txStartTime}ms):`, txHash)
+
+        } else {
+             // ===== Native BNB Transfer =====
+             console.log('[Send] Native BNB transfer')
+             
+             // ⚡⚡⚡ 使用已获取的 Gas Price（200% 加速）
+             console.log(`[Send] ⚡ Using 200% Gas: ${formatEther(fastGasPrice)} Gwei`)
+             
+             // ⚡⚡⚡ 固定 Gas Limit
+             const nativeGasLimit = BigInt(estimatedGasLimit)
+             
+             // Send Transaction
+             const txStartTime = Date.now()
+             txHash = await client.sendTransaction({
+                to: address as `0x${string}`,
+                value: amountWei,
+                gas: nativeGasLimit,
+                gasPrice: fastGasPrice
+             })
+             console.log(`[Send] ⚡ BNB tx sent (${Date.now() - txStartTime}ms):`, txHash)
         }
 
-        console.log('Send Transaction Submitted:', txHash)
+        // ⚡⚡⚡ Wait for confirmation with 0 confirmations for maximum speed
+        console.log('[Send] ⚡⚡⚡ Waiting for confirmation (0 conf, 500ms polling)...')
+        const confirmStartTime = Date.now()
+        const receipt = await publicClient.waitForTransactionReceipt({
+            hash: txHash,
+            confirmations: 0, // ⚡⚡⚡ 0 confirmations for fastest speed
+            timeout: 15_000, // ⚡⚡⚡ Reduced timeout to 15s (BSC is fast)
+            pollingInterval: 500 // ⚡⚡⚡ Explicit 500ms polling (matches publicClient config)
+        })
+        const confirmTime = Date.now() - confirmStartTime
+        console.log(`[Send] ⚡ Confirmation received (${confirmTime}ms / ${(confirmTime/1000).toFixed(2)}s)`)
+        
+        if (receipt.status !== 'success') {
+            throw new Error('交易已回退，请检查余额和网络状态')
+        }
+        
+        console.log('[Send] ✅ Transaction confirmed successfully!')
 
-        // Optimistic Update
+        // ⚡⚡⚡ CRITICAL OPTIMIZATION: Do everything in parallel after confirmation
+        const totalTime = ((Date.now() - totalStartTime) / 1000).toFixed(2)
+        console.log(`[Send] ⚡⚡⚡ TOTAL SEND TIME: ${totalTime}s`)
+
+        // Optimistic Update (immediate)
         updateAssetBalance(network.id, selectedAssetSymbol, amount, 'subtract')
-        updateAssetBalance(network.id, GAS_TOKEN_SYMBOL, FEES.SEND_RADRS.toString(), 'subtract')
 
+        // Add activity (immediate)
         addActivity({
             type: "Send",
             asset: selectedAssetSymbol,
             amount: `-${amount}`,
-            status: "Pending",
+            status: "Success",
             hash: txHash,
+            from: wallet?.address, // ✅ 添加发送方地址
+            to: address,           // ✅ 添加接收方地址
             timestamp: Date.now()
         })
 
-        alert(t('send.success', 'Transaction submitted successfully!'))
+        // ⚡⚡⚡ Show alert immediately (don't wait for balance refresh)
+        alert(`转账成功！\n\n交易已确认，余额即将更新。\n\n⚡ 完成时间: ${totalTime}秒`)
 
+        // ⚡⚡⚡ Navigate immediately (don't wait for balance refresh)
         setIsSending(false)
         setShowConfirm(false)
-        navigate("/wallet") 
+        navigate("/wallet")
+        
+        // ⚡⚡⚡ Fetch balances in background (async, don't await)
+        console.log('[Send] ⚡ Fetching updated balances in background...')
+        fetchRealBalances().catch(e => console.warn('[Send] Background balance fetch failed:', e))
 
     } catch (error: any) {
-        console.error("Send failed", error)
+        console.error('[Send] ❌ Send failed:', error)
         
-        // 檢查是否是 AA21 錯誤
-        const errorMessage = error.message || error.toString()
-        if (errorMessage.includes("AA21") || errorMessage.includes("didn't pay prefund")) {
-          alert(t('send.aa21Error', `❌ 智能賬戶餘額不足\n\n錯誤：智能賬戶沒有足夠的 BNB 來支付 prefund（預付費）\n\n當前智能賬戶 BNB 餘額: ${smartAccountBnbBalance} BNB\n需要至少: 0.001 BNB\n\n解決方案：\n請向智能賬戶地址轉入至少 0.005 BNB：\n${smartAccountAddress}\n\n然後重試轉賬。`))
+        let errorMsg = '转账失败！\n\n'
+        
+        if (error.message?.includes('BNB 余额不足支付 Gas 费')) {
+            // 已经包含详细信息的错误（从预检查抛出）
+            errorMsg += error.message
+        } else if (error.message?.includes('insufficient funds')) {
+            // 链上返回的余额不足错误
+            errorMsg += `🔴 余额不足\n\n可能原因:\n`
+            errorMsg += `1. ${selectedAssetSymbol} 代币余额不足\n`
+            errorMsg += `2. BNB Gas 费不足\n\n`
+            errorMsg += `您的 BNB: ${gasAsset?.balance || '0'}\n`
+            errorMsg += `转账资产: ${selectedAssetSymbol}\n\n`
+            errorMsg += `建议: 确保 BNB 余额 > 0.001`
+        } else if (error.message?.includes('timeout') || error.message?.includes('timed out')) {
+            errorMsg += `🔴 网络超时\n\n建议:\n- 切换到更好的网络（WiFi）\n- 稍后重试`
         } else {
-          alert(errorMessage || "Transaction failed")
+            errorMsg += `${error.message || '未知错误'}\n\n建议: 检查网络连接后重试`
         }
         
+        alert(errorMsg)
         setIsSending(false)
     }
   }
 
   return (
     <div className="min-h-screen bg-background-primary text-text-primary p-4 pb-8 max-w-md mx-auto">
+      {/* Scanner Modal */}
+      {showScanner && (
+        <QrScanner 
+            onScan={(val) => {
+                if (val) {
+                    setAddress(val)
+                    validateAddress(val)
+                    setShowScanner(false)
+                }
+            }}
+            onClose={() => setShowScanner(false)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6 pt-4">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -220,7 +329,12 @@ export default function Send() {
                 onBlur={() => validateAddress(address)}
                 className={`pr-10 ${addressError ? 'border-status-error focus-visible:ring-status-error' : ''}`}
             />
-            <Button variant="ghost" size="icon" className="absolute right-1 top-1 h-10 w-10 text-text-secondary">
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                className="absolute right-1 top-1 h-10 w-10 text-text-secondary"
+                onClick={() => setShowScanner(true)}
+            >
                 <ScanLine className="w-5 h-5" />
             </Button>
             </div>
@@ -269,49 +383,26 @@ export default function Send() {
         {/* Network Fee */}
         <div className="bg-background-secondary p-4 rounded-xl space-y-2 order-2">
             <div className="flex justify-between text-sm">
-                <span className="text-text-secondary">{t('common.networkFee')}</span>
+                <span className="text-text-secondary">网络费用 (Gas)</span>
                 <div className="text-right">
-                    <span className="block font-medium">{FEES.SEND_RADRS} {GAS_TOKEN_SYMBOL}</span>
+                    <span className="block font-medium">
+                      ~{selectedAssetSymbol === 'RADRS' ? '0.0007' : selectedAsset?.contractAddress ? '0.0005' : '0.0003'} BNB
+                    </span>
                     <span className="text-xs text-text-secondary">
-                        ≈ ${(parseFloat(FEES.SEND_RADRS.toString()) * 0.145).toFixed(2)}
+                        ≈ $0.{selectedAsset?.contractAddress ? '15' : '08'}
                     </span>
                 </div>
             </div>
             <div className="flex justify-end flex-col items-end gap-1">
-                    <Badge variant="warning" className="text-[10px]">{t('common.paidIn', { token: GAS_TOKEN_SYMBOL })}</Badge>
+                    <Badge variant="warning" className="text-[10px]">极速 Gas (200%)</Badge>
                     {!hasEnoughGas && (
-                    <div className="flex items-center gap-1 text-status-error text-xs">
-                        <AlertCircle className="w-3 h-3" />
-                        <span>{t('common.insufficientBalance', { token: GAS_TOKEN_SYMBOL })}</span>
+                    <div className="flex items-center gap-2 p-2 bg-status-error/10 border border-status-error/20 rounded-lg mt-2">
+                        <AlertCircle className="w-4 h-4 text-status-error flex-shrink-0" />
+                        <span className="text-status-error text-xs">BNB 余额不足 (Gas)</span>
                     </div>
                     )}
             </div>
         </div>
-
-        {/* 智能賬戶 BNB 餘額警告 */}
-        {smartAccountAddress && (
-          <div className="bg-blue-500/10 border border-blue-500/30 p-4 rounded-xl space-y-2 order-3">
-            <div className="flex items-start gap-2">
-              <Info className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
-              <div className="space-y-1 text-xs">
-                <p className="text-blue-400 font-medium">智能賬戶 BNB 餘額</p>
-                <p className="text-text-secondary">
-                  當前: <span className={`font-mono ${!hasEnoughBnbInSmartAccount ? 'text-status-error font-semibold' : 'text-status-success'}`}>
-                    {isCheckingBalance ? '檢查中...' : `${parseFloat(smartAccountBnbBalance || "0").toFixed(6)} BNB`}
-                  </span>
-                </p>
-                <p className="text-text-secondary">需要: <span className="font-mono">≥ 0.001 BNB</span></p>
-                {!hasEnoughBnbInSmartAccount && smartAccountAddress && (
-                  <div className="mt-2 pt-2 border-t border-blue-500/20">
-                    <p className="text-status-error font-medium mb-1">⚠️ 餘額不足！</p>
-                    <p className="text-text-secondary">請向智能賬戶轉入至少 0.005 BNB：</p>
-                    <p className="font-mono text-[10px] text-blue-400 break-all mt-1 bg-background-primary/50 p-2 rounded">{smartAccountAddress}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
       </div>
 
@@ -320,9 +411,14 @@ export default function Send() {
             className="w-full order-1" 
             size="lg" 
             onClick={handleNext}
-            disabled={!address || !amount || !hasEnoughGas || !!addressError || !hasEnoughBnbInSmartAccount || isCheckingBalance}
+            disabled={!address || !amount || !hasEnoughGas || !!addressError || isSending || parseFloat(amount) > parseFloat(selectedAssetBalance)}
         >
-            {isCheckingBalance ? t('common.loading', '檢查中...') : t('wallet.send')} <ArrowRight className="ml-2 w-4 h-4" />
+            {isSending ? '发送中...' : 
+             !address ? '请输入地址' :
+             !amount ? '请输入金额' :
+             parseFloat(amount) > parseFloat(selectedAssetBalance) ? `${selectedAssetSymbol} 余额不足` :
+             !hasEnoughGas ? 'BNB 余额不足 (Gas)' :
+             '发送'} <ArrowRight className="ml-2 w-4 h-4" />
         </Button>
 
         {/* Referral Banner */}
@@ -357,10 +453,12 @@ export default function Send() {
                 </div>
 
                 <div className="flex justify-between items-start">
-                    <span className="text-text-secondary text-sm">{t('common.networkFee')}</span>
+                    <span className="text-text-secondary text-sm">网络费用 (Gas)</span>
                     <div className="text-right">
-                        <span className="block text-sm font-medium">{FEES.SEND_RADRS} {GAS_TOKEN_SYMBOL}</span>
-                        <Badge variant="warning" className="mt-1 text-[10px]">{t('common.paidIn', { token: GAS_TOKEN_SYMBOL })}</Badge>
+                        <span className="block text-sm font-medium">
+                          ~{selectedAssetSymbol === 'RADRS' ? '0.0007' : selectedAsset?.contractAddress ? '0.0005' : '0.0003'} BNB
+                        </span>
+                        <Badge variant="warning" className="mt-1 text-[10px]">极速 Gas (200%)</Badge>
                     </div>
                 </div>
             </div>

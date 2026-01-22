@@ -11,8 +11,9 @@ export const publicClient = createPublicClient({
 })
 
 export const radrsService = {
-  // Paymaster Functions
+  // ⚠️ DEPRECATED Paymaster Functions - 不再使用于 Pure EOA 钱包
   /**
+   * @deprecated 此函数用于 AA 钱包，当前为 Pure EOA 模式，不再使用
    * Checks if the account is activated in the Paymaster.
    * @param address - The AA wallet address to check.
    */

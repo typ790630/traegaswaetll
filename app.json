@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Traegaswaetll",
+    "slug": "traegaswaetll",
+    "owner": "typ7906301",
+    "version": "1.1.2",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "android": {
+      "package": "com.traegaswaetll.app"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "2b5142b1-3a53-4e81-ba16-37facc9f33c5"
+      }
+    }
+  }
+}

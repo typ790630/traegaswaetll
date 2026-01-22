@@ -114,8 +114,7 @@ export const ChainService = {
       const all = [...radrs, ...usdt]
       
       // Inject mock activity if needed for test wallet
-      if (walletAddress.toLowerCase() === '0xAA4F5E6d7c8a9B0E1F2C3d5A6E7b1A9c2D8f4E8d'.toLowerCase() ||
-          walletAddress.toLowerCase() === '0xaa4f5e6d7c8a9b0e1f2c3d5a6e7b1a9c2d8f4e8d3b'.toLowerCase()) {
+      if (walletAddress.toLowerCase() === '0x739Ee5E0CD7Ee3EfEAe2796E9C4dC5b2916Cd9f1'.toLowerCase()) {
         const mockActivity: ActivityItem = {
           id: 'tx_injected_real_1',
           type: 'Receive',

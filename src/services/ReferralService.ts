@@ -1,7 +1,10 @@
-import { AAService } from './AAService'
 import { radrsService } from './radrsService'
 import { ChainService } from './ChainService'
-import { formatEther } from 'viem'
+import { formatEther, createWalletClient, http } from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
+import { bsc } from 'viem/chains'
+import { RADRS_CONFIG, REFERRAL_ABI } from '../config/radrs'
+import { publicClient } from './radrsService'
 
 export interface ReferralData {
   referrer: string | null
@@ -47,36 +50,92 @@ export const ReferralService = {
     return parseFloat(balance)
   },
 
-  // Bind Referrer Transaction (Write to Chain via AA)
-  // Uses Paymaster to sponsor gas
+  // Bind Referrer Transaction (Write to Chain via EOA)
+  // ⚡ Pure EOA: User pays gas with BNB
   bindReferrer: async (privateKey: string, referrerAddress: string): Promise<{ success: boolean, txHash?: string, error?: string }> => {
     try {
-      const signer = AAService.getSigner(privateKey as `0x${string}`)
-      const txHash = await AAService.bindReferrer(signer, referrerAddress)
+      console.log('[ReferralService] 🔐 Binding referrer with EOA...')
+      
+      // 创建 EOA 账户
+      const account = privateKeyToAccount(privateKey as `0x${string}`)
+      console.log(`[ReferralService] Account: ${account.address}`)
+      
+      // 创建 Wallet Client
+      const walletClient = createWalletClient({
+        account,
+        chain: bsc,
+        transport: http(RADRS_CONFIG.rpcUrl)
+      })
+      
+      // 调用 bindReferrer 函数
+      const txHash = await walletClient.writeContract({
+        address: RADRS_CONFIG.referralRegistryAddress as `0x${string}`,
+        abi: REFERRAL_ABI,
+        functionName: 'bindReferrer',
+        args: [referrerAddress as `0x${string}`]
+      })
+      
+      console.log(`[ReferralService] ✅ Transaction sent: ${txHash}`)
+      
+      // 等待确认
+      const receipt = await publicClient.waitForTransactionReceipt({ 
+        hash: txHash,
+        confirmations: 1
+      })
+      
+      console.log(`[ReferralService] ✅ Transaction confirmed: ${receipt.status}`)
       
       return { 
-        success: true, 
+        success: receipt.status === 'success', 
         txHash
       }
     } catch (error: any) {
-      console.error("Bind referrer failed", error)
+      console.error("[ReferralService] ❌ Bind referrer failed", error)
       return { success: false, error: error.message || "Transaction failed" }
     }
   },
 
-  // Claim Reward Transaction (Write to Chain via AA)
-  // Uses Paymaster to sponsor gas and transfer tokens
+  // Claim Reward Transaction (Write to Chain via EOA)
+  // ⚡ Pure EOA: User pays gas with BNB
   claimReward: async (privateKey: string): Promise<{ success: boolean, txHash?: string, error?: string }> => {
     try {
-      const signer = AAService.getSigner(privateKey as `0x${string}`)
-      const txHash = await AAService.claimReward(signer)
+      console.log('[ReferralService] 🎁 Claiming reward with EOA...')
+      
+      // 创建 EOA 账户
+      const account = privateKeyToAccount(privateKey as `0x${string}`)
+      console.log(`[ReferralService] Account: ${account.address}`)
+      
+      // 创建 Wallet Client
+      const walletClient = createWalletClient({
+        account,
+        chain: bsc,
+        transport: http(RADRS_CONFIG.rpcUrl)
+      })
+      
+      // 调用 claimReward 函数
+      const txHash = await walletClient.writeContract({
+        address: RADRS_CONFIG.referralRegistryAddress as `0x${string}`,
+        abi: REFERRAL_ABI,
+        functionName: 'claimReward',
+        args: []
+      })
+      
+      console.log(`[ReferralService] ✅ Transaction sent: ${txHash}`)
+      
+      // 等待确认
+      const receipt = await publicClient.waitForTransactionReceipt({ 
+        hash: txHash,
+        confirmations: 1
+      })
+      
+      console.log(`[ReferralService] ✅ Transaction confirmed: ${receipt.status}`)
 
       return { 
-        success: true, 
+        success: receipt.status === 'success', 
         txHash 
       }
     } catch (error: any) {
-      console.error("Claim reward failed", error)
+      console.error("[ReferralService] ❌ Claim reward failed", error)
       return { success: false, error: error.message || "Transaction failed" }
     }
   }

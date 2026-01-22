@@ -27,8 +27,8 @@ export interface Network {
 export interface Wallet {
   id: string
   name: string
-  address: string // AA Address
-  eoaAddress?: string // Hidden EOA address (for internal use)
+  address: string // EOA Address (Pure EOA Mode)
+  eoaAddress?: string // Same as address in Pure EOA mode
   totalBalance?: string // Mock total balance for display in list
   mnemonic?: string // Mnemonic for backup
 }
@@ -45,7 +45,8 @@ interface AppState {
   setWallet: (id: string) => void
   setNetwork: (id: string) => void
   
-  createWallet: (name: string) => void
+  createWallet: (name: string, mnemonic?: string) => void
+  importWallet: (name: string, mnemonic: string) => Promise<boolean>
   deleteWallet: (id: string) => void
   addToken: (networkId: string, contractAddress: string, name: string, symbol: string, decimals: number) => void
   updateAssetBalance: (networkId: string, symbol: string, amount: string, mode: 'set' | 'add' | 'subtract') => void
@@ -121,7 +122,7 @@ const MOCK_NETWORKS: Network[] = [
     assets: [
       { symbol: 'BNB', name: 'Binance Coin', balance: '0.0000', price: 650, contractAddress: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c' },
       { symbol: 'USDT', name: 'Tether USD', balance: '0.00', price: 1.0, contractAddress: '0x55d398326f99059fF775485246999027B3197955' },
-      { symbol: 'RADRS', name: 'Radar Token', balance: '0.00', isGas: true, price: 0.14505, contractAddress: '0xe2188a2e0a41a50f09359e5fe714d5e643036f2a' },
+      { symbol: 'RADRS', name: 'Radar Token', balance: '0.00', price: 0.14505, contractAddress: '0xe2188a2e0a41a50f09359e5fe714d5e643036f2a' },
     ]
   },
   {
@@ -132,7 +133,7 @@ const MOCK_NETWORKS: Network[] = [
     assets: [
       { symbol: 'ETH', name: 'Ethereum', balance: '0.00', price: 3000 },
       { symbol: 'USDT', name: 'Tether USD', balance: '0.00', price: 1.0 },
-      { symbol: 'RADRS', name: 'Radar Token', balance: '200.00', isGas: true, price: 0.05 },
+      { symbol: 'RADRS', name: 'Radar Token', balance: '200.00', price: 0.05 },
     ]
   },
   {
@@ -143,54 +144,24 @@ const MOCK_NETWORKS: Network[] = [
     assets: [
       { symbol: 'MATIC', name: 'Polygon', balance: '0.00', price: 0.8 },
       { symbol: 'USDT', name: 'Tether USD', balance: '0.00', price: 1.0 },
-      { symbol: 'RADRS', name: 'Radar Token', balance: '200.00', isGas: true, price: 0.05 },
+      { symbol: 'RADRS', name: 'Radar Token', balance: '200.00', price: 0.05 },
     ]
   }
 ]
 
-// Helper to simulate AA address derivation from EOA
-const deriveAAAddress = (eoa: string) => {
-    // Deterministic mock derivation
-    // In real world: Create2(Factory, Salt, InitCode)
-    // We must return a valid checksummed address for viem to accept it
-    
-    try {
-        // Remove 0x prefix to get pure hex string (40 characters)
-        const hexPart = eoa.substring(2)
-        
-        // Reverse the hex string
-        const reversed = hexPart.split('').reverse().join('')
-        
-        // Take first 38 characters of reversed string
-        // Add 'AA' prefix to make it 40 characters total
-        // This creates a deterministic but different address from the EOA
-        const newHex = 'AA' + reversed.substring(0, 38)
-        
-        // Verify length before creating address
-        if (newHex.length !== 40) {
-            console.error('AA address generation error: incorrect length', newHex.length)
-            // Fallback: use EOA as AA address
-            return getAddress(eoa)
-        }
-        
-        // Create address with 0x prefix and checksum
-        const rawAddress = `0x${newHex}`
-        return getAddress(rawAddress)
-    } catch (e) {
-        console.error('Failed to derive AA address:', e)
-        // Fallback: Just return the EOA as the AA address
-        return getAddress(eoa)
-    }
-}
-
-// Simple random mnemonic generator (since we don't have bip39)
-// Removed old mock generator
+// ⚡⚡⚡ Pure EOA 钱包地址生成
+// 直接从助记词派生 EOA 地址，不再使用 AA 架构
 const generateWalletFromMnemonic = (mnemonic: string) => {
     const seed = mnemonicToSeedSync(mnemonic)
     const hdkey = HDKey.fromMasterSeed(seed)
     const path = `m/44'/60'/0'/0/0` // ETH standard path
     const derivedKey = hdkey.derive(path)
-    const privateKey = `0x${Buffer.from(derivedKey.privateKey!).toString('hex')}`
+    // 浏览器兼容：使用 Array.from 代替 Buffer
+    const privateKeyBytes = derivedKey.privateKey!
+    const privateKeyHex = Array.from(privateKeyBytes)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
+    const privateKey = `0x${privateKeyHex}`
     const account = privateKeyToAccount(privateKey as `0x${string}`)
     return {
         address: account.address,
@@ -198,36 +169,54 @@ const generateWalletFromMnemonic = (mnemonic: string) => {
     }
 }
 
-// Initialize with proper AA address using deriveAAAddress
-const MOCK_EOA = '0x3bD8e4F8d2c9A1b7E6a5D3C2f1E0B9a8c7D6e5F4'
-// ⚠️ HARDCODED REAL AA ADDRESS for the MOCK_EOA on BSC (ChainId 56) with SimpleAccountFactory v0.6
-// Factory: 0x9406Cc6185a346906296840746125a0E44976454
-// Owner: 0x3bD8e4F8d2c9A1b7E6a5D3C2f1E0B9a8c7D6e5F4
-// Salt: 0
-// Calculated via permissionless/viem or on-chain factory
-// We hardcode it here to ensure the UI shows the correct address from the start for the default wallet.
-// If user creates new wallets, we will need to calculate it dynamically (which we should add).
-const PRECALCULATED_AA_ADDRESS = '0x2139366909c41d7fAdd2c3701db57Ca4B5f0224B'
+// ⚡⚡⚡ 生成随机的默认钱包（安全）
+// 每次应用首次启动时，生成全新的随机助记词
 
-const MOCK_WALLETS: Wallet[] = [
-  {
-    id: 'w1',
-    name: 'My Wallet',
-    eoaAddress: MOCK_EOA,
-    // Use PRECALCULATED_AA_ADDRESS instead of fake deriveAAAddress
-    address: PRECALCULATED_AA_ADDRESS, 
-    totalBalance: '$29.01',
-    mnemonic: 'witch collapse practice feed shame open despair creek road again ice least'
-  }
-]
+let DEFAULT_WALLET: Wallet
 
-// Reset function to clear legacy data structure issues
-const cleanupLegacyData = (state: any) => {
-    // If wallets have "accounts" array (legacy structure), migration might be needed or just reset
-    // For now, we trust the MOCK_WALLETS structure for new users
-    // But existing persisted state might have old structure
-    return state
+try {
+    // ✅ 生成真正的随机助记词（12 个单词）
+    const randomMnemonic = generateMnemonic(wordlist, 128)
+    const walletData = generateWalletFromMnemonic(randomMnemonic)
+    
+    console.log('[useAppStore] 🔐 默认钱包初始化（随机助记词）:')
+    console.log(`  助记词: ${randomMnemonic}`)
+    console.log(`  地址: ${walletData.address}`)
+    console.log(`  私钥: ${walletData.privateKey.substring(0, 10)}...${walletData.privateKey.substring(60)}`)
+    
+    console.warn('⚠️⚠️⚠️ 重要提醒 ⚠️⚠️⚠️')
+    console.warn('这是一个随机生成的默认钱包！')
+    console.warn('请立即在【安全中心】查看并保存助记词！')
+    console.warn('或者创建新钱包/导入已有钱包！')
+    
+    DEFAULT_WALLET = {
+        id: 'w1',
+        name: 'My Wallet',
+        eoaAddress: walletData.address,
+        address: walletData.address, // Pure EOA
+        totalBalance: '$0.00',
+        mnemonic: randomMnemonic  // ✅ 真正的随机助记词
+    }
+} catch (error) {
+    console.error('[useAppStore] ❌ 默认钱包初始化失败:', error)
+    
+    // 🚨 如果随机生成失败，使用一个测试助记词但警告用户
+    const fallbackMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+    const walletData = generateWalletFromMnemonic(fallbackMnemonic)
+    
+    console.error('🚨🚨🚨 警告：使用测试助记词！请立即创建新钱包！')
+    
+    DEFAULT_WALLET = {
+        id: 'w1',
+        name: 'UNSAFE Wallet',
+        eoaAddress: walletData.address,
+        address: walletData.address,
+        totalBalance: '$0.00',
+        mnemonic: fallbackMnemonic
+    }
 }
+
+const MOCK_WALLETS: Wallet[] = [DEFAULT_WALLET]
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -264,49 +253,32 @@ export const useAppStore = create<AppState>()(
             if (!wallet || !network) return
 
             // Dynamically support different chains
-            // For now we only have BSC fully configured with AAService
-            // But we can at least fetch native balances for others if RPC is set
-            
             if (network.id !== 'bsc' && network.id !== 'eth' && network.id !== 'polygon') return
 
-            // ⚠️ CRITICAL FIX: AA Address Logic ⚠️
-            // In our system, the "Wallet Address" displayed in UI IS the AA Address.
-            // The `wallet.address` field in store ALREADY stores the derived AA address (see createWallet/deriveAAAddress).
-            // However, previous logic might have been confusing EOA vs AA.
-            // When checking balance for an AA wallet, we MUST use `wallet.address`.
-            // We should NOT use `wallet.eoaAddress` for balance checks, as funds are sent to the AA address.
-            
-            const targetAddress = wallet.address // This is the AA Address
-            console.log(`[useAppStore] Fetching balances for AA Address: ${targetAddress} on ${network.id}`)
+            // Pure EOA: Address is wallet.address
+            const targetAddress = wallet.address
+            console.log(`[useAppStore] Fetching balances for EOA Address: ${targetAddress} on ${network.id}`)
 
             const updatedAssets = await Promise.all(network.assets.map(async (asset) => {
                 let balance = asset.balance
                 
                 try {
-                    // TODO: Use dynamic provider based on chainId
-                    // Currently ChainService is hardcoded to BSC publicClient
-                    // We need to update ChainService to accept chainId or client
-                    
                     if (network.id === 'bsc') {
                          if (asset.symbol === 'BNB') {
-                             // Use targetAddress (AA Address)
                              balance = await ChainService.getNativeBalance(targetAddress)
                              console.log(`[useAppStore] BNB Balance for ${targetAddress}: ${balance}`)
                          } else if (asset.contractAddress) {
-                             // Use targetAddress (AA Address)
                              balance = await ChainService.getErc20Balance(asset.contractAddress, targetAddress)
                              console.log(`[useAppStore] ${asset.symbol} Balance for ${targetAddress}: ${balance}`)
                          }
                     } else {
-                        // For ETH/Polygon, just return 0 for now until ChainService is multi-chain
-                        // Or we can implement a quick fetch here if we had the RPCs
+                        // Other chains placeholder
                     }
                     
                 } catch (err) {
                     console.error(`Failed to fetch balance for ${asset.symbol}`, err)
                 }
                 
-                // Round to 4 decimals for display
                 const formatted = parseFloat(balance).toFixed(4)
                 
                 return { ...asset, balance: formatted }
@@ -325,47 +297,21 @@ export const useAppStore = create<AppState>()(
       setWallet: (id) => set({ currentWalletId: id }),
       setNetwork: (id: string) => set({ currentNetworkId: id }),
       
-      createWallet: async (name) => {
-        // Generate real BIP39 mnemonic
-        const mnemonic = generateMnemonic(wordlist, 128)
+      createWallet: async (name, providedMnemonic) => {
+        // ⚡ Pure EOA: 使用提供的助记词或生成新的随机助记词
+        const mnemonic = providedMnemonic || generateMnemonic(wordlist, 128)
+        const { address: eoaAddress } = generateWalletFromMnemonic(mnemonic)
         
-        // Derive EOA from Mnemonic
-        const { address: eoaAddress, privateKey } = generateWalletFromMnemonic(mnemonic)
-        
-        // Use AAService logic (via publicClient) to calculate the REAL AA Address
-        // We can't use AAService directly here easily due to circular deps or async init
-        // But we can replicate the logic:
-        // SimpleAccountFactory.getAddress(owner, salt)
-        // For now, to keep it sync/simple in the store, we will use a temporary placeholder
-        // AND trigger an async update. 
-        // OR better: Make createWallet async.
-        
-        // Let's use a "best effort" calculation or fetch it
-        // Since we can't easily import the factory ABI and call it here without making this complex
-        // We will try to rely on the fact that the wallet page will "correct" it if we implement a fixer.
-        // BUT wait, we need it right now.
-        
-        // Let's import the necessary VIEM tools to calculate it offline if possible?
-        // No, getAddress is a view function on the factory.
-        
-        // For this specific turn, I'll stick to a clearer "Pending" state or similar if I can't calculate it.
-        // But actually, I can just use the same "deriveAAAddress" (MOCK) for now for *new* wallets
-        // UNLESS the user funds them.
-        
-        // WAIT, the user problem is specifically about the DEFAULT wallet.
-        // I have fixed the default wallet above.
-        // For new wallets, I should ideally fix them too.
-        
-        // Let's use the deriveAAAddress for now but rename it to `mockDeriveAAAddress` to be explicit
-        // And we should really implement a `syncWalletAddress` action.
-        
-        const aaAddress = deriveAAAddress(eoaAddress)
+        console.log('[useAppStore] 🔐 创建新钱包（Pure EOA）:')
+        console.log(`  助记词来源: ${providedMnemonic ? '向导提供' : '自动生成'}`)
+        console.log(`  助记词: ${mnemonic}`)
+        console.log(`  EOA 地址: ${eoaAddress}`)
         
         const newWallet: Wallet = {
           id: Math.random().toString(36).substring(2, 9),
           name,
-          address: aaAddress, 
-          eoaAddress,
+          address: eoaAddress,      // ✅ Pure EOA 地址
+          eoaAddress: eoaAddress,   // ✅ 相同的 EOA 地址
           totalBalance: '$0.00',
           mnemonic
         }
@@ -373,9 +319,54 @@ export const useAppStore = create<AppState>()(
         set((state) => ({ wallets: [...state.wallets, newWallet], currentWalletId: newWallet.id }))
       },
 
+      importWallet: async (name, mnemonic) => {
+        try {
+          // ⚡ Pure EOA: 从助记词派生 EOA 地址
+          console.log('[useAppStore] 🔐 导入钱包（Pure EOA）...')
+          
+          const { address: eoaAddress } = generateWalletFromMnemonic(mnemonic)
+          
+          console.log(`  助记词: ${mnemonic}`)
+          console.log(`  派生 EOA 地址: ${eoaAddress}`)
+          
+          // 检查是否已存在
+          const existingWallet = get().wallets.find(
+            w => w.address.toLowerCase() === eoaAddress.toLowerCase()
+          )
+          
+          if (existingWallet) {
+            console.log('[useAppStore] ⚠️ 钱包已存在，切换到该钱包')
+            set({ currentWalletId: existingWallet.id })
+            return true
+          }
+          
+          // 创建新钱包
+          const newWallet: Wallet = {
+            id: Math.random().toString(36).substring(2, 9),
+            name,
+            address: eoaAddress,      // ✅ Pure EOA 地址
+            eoaAddress: eoaAddress,   // ✅ 相同的 EOA 地址
+            totalBalance: '$0.00',
+            mnemonic
+          }
+          
+          console.log('[useAppStore] ✅ 钱包导入成功')
+          
+          set((state) => ({ 
+            wallets: [...state.wallets, newWallet], 
+            currentWalletId: newWallet.id 
+          }))
+          
+          return true
+        } catch (error) {
+          console.error('[useAppStore] ❌ 导入钱包失败:', error)
+          return false
+        }
+      },
+
       deleteWallet: (id) => set((state) => {
         const newWallets = state.wallets.filter(w => w.id !== id)
-        if (newWallets.length === 0) return state // Prevent deleting last wallet
+        if (newWallets.length === 0) return state 
         return { 
           wallets: newWallets, 
           currentWalletId: state.currentWalletId === id ? newWallets[0].id : state.currentWalletId,
@@ -385,7 +376,6 @@ export const useAppStore = create<AppState>()(
       addToken: (networkId, contractAddress, name, symbol, decimals) => set((state) => {
         const updatedNetworks = state.networks.map(n => {
           if (n.id === networkId) {
-            // Check if token already exists
             if (n.assets.some(a => a.symbol === symbol || a.contractAddress?.toLowerCase() === contractAddress.toLowerCase())) {
                 return n
             }
@@ -395,7 +385,7 @@ export const useAppStore = create<AppState>()(
                 name,
                 balance: '0.0000',
                 contractAddress,
-                price: 0 // Default price
+                price: 0 
             }
             
             return { ...n, assets: [...n.assets, newAsset] }
@@ -415,7 +405,7 @@ export const useAppStore = create<AppState>()(
                 if (mode === 'set') newBalance = change
                 if (mode === 'add') newBalance += change
                 if (mode === 'subtract') newBalance -= change
-                return { ...a, balance: Math.max(0, newBalance).toFixed(4) } // Format to 4 decimals, prevent negative
+                return { ...a, balance: Math.max(0, newBalance).toFixed(4) } 
               }
               return a
             })
@@ -457,7 +447,6 @@ export const useAppStore = create<AppState>()(
       })),
       setActivities: (activities) => set({ activities }),
 
-      // Referral State
       referral: {
         referrer: "0x0000000000000000000000000000000000000000",
         inviteCount: 0,
@@ -471,30 +460,27 @@ export const useAppStore = create<AppState>()(
       getCurrentWallet: () => get().wallets.find(w => w.id === get().currentWalletId),
       getCurrentNetwork: () => get().networks.find(n => n.id === get().currentNetworkId),
       
-      // Helper to get real private key for signing
       getPrivateKey: (walletId: string) => {
           const wallet = get().wallets.find(w => w.id === walletId)
-          if (!wallet) return ""
+          if (!wallet) {
+              console.error("[Security] ❌ Wallet not found:", walletId)
+              return ""
+          }
           
-          // 1. Try deriving from Mnemonic (Real BIP39)
           if (wallet.mnemonic) {
               try {
                   const { privateKey } = generateWalletFromMnemonic(wallet.mnemonic)
                   return privateKey
               } catch (e) {
-                  console.error("Failed to derive key from mnemonic", e)
+                  console.error("[Security] ❌ Failed to derive key from mnemonic:", e)
+                  return ""
               }
           }
           
-          // 2. Fallback to Legacy Mock Key (for old wallets or test mock wallets)
-          if (wallet.eoaAddress) {
-              const seed = wallet.eoaAddress.toLowerCase().replace('0x', '')
-              const part1 = seed.substring(0, 16)
-              const part2 = seed.substring(16, 32)
-              const part3 = seed.substring(32)
-              return `0x${part3}${part1}${part2}9d1e5f4a`.padEnd(66, '0')
-          }
-          
+          // ❌ 生产环境：必须有助记词
+          console.error("[Security] ❌ No mnemonic found for wallet. Cannot derive private key!")
+          console.error("[Security] ❌ Wallet ID:", walletId)
+          console.error("[Security] ❌ This should never happen in production!")
           return ""
       },
 
@@ -503,18 +489,13 @@ export const useAppStore = create<AppState>()(
       setAppLockEnabled: (enabled) => set({ appLockEnabled: enabled }),
       setBiometricsEnabled: (enabled) => set({ biometricsEnabled: enabled }),
 
-      appPassword: null, // Should be hashed in production
+      appPassword: null, 
       setAppPassword: (password) => {
-          // Simple hash for prototype (Base64) - In prod use bcrypt/argon2
-          // But since we run in browser, we can use a simple hash or just store it if we accept the risk in local storage
-          // Better: Use SHA-256 via Web Crypto API? Too async.
-          // Let's use Base64 as requested for now to fix the "Hardcoded 123456" issue
           const hashed = btoa(password)
           set({ appPassword: hashed })
       },
       verifyPassword: (password) => {
           const state = get()
-          // Fallback to "123456" if no password set yet (Legacy support)
           if (!state.appPassword) return password === "123456"
           return btoa(password) === state.appPassword
       },
@@ -530,29 +511,26 @@ export const useAppStore = create<AppState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ 
         wallets: state.wallets,
-        networks: state.networks, // Persist balances
+        networks: state.networks, 
         userCards: state.userCards,
         activities: state.activities,
         referral: state.referral,
-        // Don't persist UI state like current IDs if we want to reset them, but actually it's better to persist them for UX
         currentWalletId: state.currentWalletId,
         currentNetworkId: state.currentNetworkId,
-        // Security Settings
         appLockEnabled: state.appLockEnabled,
         biometricsEnabled: state.biometricsEnabled,
         appPassword: state.appPassword,
-        // Legal
         agreedTermsVersion: state.agreedTermsVersion,
         agreedPrivacyVersion: state.agreedPrivacyVersion
       }),
-      version: 6, // Increment version to force migration/reset if needed
+      version: 8, // Incremented to 8 to force reset to correct EOA address
       migrate: (persistedState: any, version) => {
-          if (version < 6) {
-              // Reset wallets AND networks (assets) to new structure if coming from old version
+          if (version < 8) {
+              // Force reset to use Pure EOA MOCK_WALLETS with new address
               return { 
                   ...persistedState, 
-                  wallets: MOCK_WALLETS, // Force reset to use PRECALCULATED_AA_ADDRESS
-                  networks: MOCK_NETWORKS, // Force reset of networks/assets
+                  wallets: MOCK_WALLETS, 
+                  networks: MOCK_NETWORKS, 
                   currentWalletId: MOCK_WALLETS[0].id
               }
           }

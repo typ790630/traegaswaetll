@@ -9,7 +9,6 @@ import { useAppStore } from "../store/useAppStore"
 import { ReferralService } from "../services/ReferralService" // Import the new service
 import { GAS_TOKEN_SYMBOL } from "../config/fees"
 import { Badge } from "../components/ui/badge"
-import { generateMockKey } from "../lib/utils"
 
 export default function Referral() {
   const { t } = useTranslation()

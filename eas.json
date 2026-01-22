@@ -8,8 +8,11 @@
     "release-apk": {
       "android": {
         "buildType": "apk",
-        "withoutCredentials": true,
-        "image": "latest"
+        "withoutCredentials": false,
+        "image": "latest",
+        "env": {
+          "EAS_BUILD": "true"
+        }
       }
     },
     "production": {

@@ -34,7 +34,8 @@ export const priceService = {
             radrsPrice = 0.14505 + (Math.random() * 0.002 - 0.001)
         }
       } catch (e) {
-        console.warn('Failed to fetch RADRS price, using fallback:', e)
+        // ✅ 降低日志级别，避免控制台噪音
+        console.log('[PriceService] RADRS price API unavailable, using fallback')
         // Jitter fallback
         radrsPrice = 0.14505 + (Math.random() * 0.002 - 0.001)
       }
@@ -47,7 +48,8 @@ export const priceService = {
         'RADRS': radrsPrice
       }
     } catch (error) {
-      console.error('Failed to fetch prices from CoinGecko:', error)
+      // ✅ 降低日志级别，避免控制台噪音
+      console.log('[PriceService] External APIs unavailable, using fallback prices')
       // 返回合理的降级价格，而不是空对象
       // 这样即使 API 失败，用户也能看到接近真实的价格
       return {

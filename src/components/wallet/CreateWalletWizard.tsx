@@ -5,6 +5,8 @@ import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { useAppStore } from "../../store/useAppStore"
 import { motion, AnimatePresence } from "framer-motion"
+import { generateMnemonic as generateBIP39Mnemonic } from '@scure/bip39'
+import { wordlist } from '@scure/bip39/wordlists/english.js'
 
 interface CreateWalletWizardProps {
   onClose: () => void
@@ -23,30 +25,50 @@ export function CreateWalletWizard({ onClose, onComplete }: CreateWalletWizardPr
   const [isCopied, setIsCopied] = useState(false)
   const [showMnemonic, setShowMnemonic] = useState(false)
 
-  // Mock Mnemonic Generation (Consistent with Store logic)
-  const generateMnemonic = () => {
-    // In real app, this comes from the newly created wallet logic or a library
-    // For wizard, we generate one to show, then pass it (or let store handle it)
-    // Here we simulate the one that WILL be created
-    return "abandon ability able about above absent absorb abstract absurd abuse access accident".split(" ")
+  // ⚡⚡⚡ 生成真正的随机助记词（12个单词）
+  const generateRealMnemonic = () => {
+    try {
+      // ✅ 使用 BIP39 标准生成真正的随机助记词
+      const mnemonicString = generateBIP39Mnemonic(wordlist, 128)
+      console.log('[CreateWalletWizard] 🔐 生成随机助记词:')
+      console.log(`  助记词: ${mnemonicString}`)
+      return mnemonicString.split(" ")
+    } catch (error) {
+      console.error('[CreateWalletWizard] ❌ 生成助记词失败:', error)
+      // 降级：如果生成失败，使用测试助记词但警告
+      alert('⚠️ 助记词生成失败！请重试或联系技术支持。')
+      return []
+    }
   }
 
   useEffect(() => {
-    if (step === 'mnemonic') {
-        const words = generateMnemonic()
-        setMnemonic(words)
-        // Shuffle for verification step
-        setShuffledMnemonic([...words].sort(() => Math.random() - 0.5))
+    if (step === 'mnemonic' && mnemonic.length === 0) {
+        // ✅ 只在首次进入助记词步骤时生成一次
+        const words = generateRealMnemonic()
+        if (words.length > 0) {
+          setMnemonic(words)
+          // Shuffle for verification step
+          setShuffledMnemonic([...words].sort(() => Math.random() - 0.5))
+        }
     }
-  }, [step])
+  }, [step, mnemonic.length])
 
   const handleNameSubmit = () => {
     if (walletName.trim()) setStep('warning')
   }
 
   const handleCreate = () => {
-    // Finalize creation
-    createWallet(walletName)
+    // ✅ 使用向导生成的助记词创建钱包
+    if (mnemonic.length !== 12) {
+      alert('❌ 助记词无效！请重试。')
+      return
+    }
+    
+    const mnemonicString = mnemonic.join(" ")
+    console.log('[CreateWalletWizard] ✅ 创建钱包，使用向导生成的助记词')
+    
+    // ✅ 传递助记词给 createWallet
+    createWallet(walletName, mnemonicString)
     setStep('done')
   }
 
@@ -75,7 +97,7 @@ export function CreateWalletWizard({ onClose, onComplete }: CreateWalletWizardPr
         handleCreate()
     } else {
         // Error or shake
-        alert("Incorrect order! Please try again.")
+        alert(t('wallet.create.incorrectOrder', '顺序不正确！请重试。'))
         setSelectedWords([])
     }
   }
@@ -91,7 +113,7 @@ export function CreateWalletWizard({ onClose, onComplete }: CreateWalletWizardPr
         <Input 
             value={walletName} 
             onChange={(e) => setWalletName(e.target.value)} 
-            placeholder="Wallet Name" 
+            placeholder={t('wallet.create.walletNamePlaceholder', '钱包名称')}
             className="h-14 text-lg"
             autoFocus
         />
@@ -115,11 +137,11 @@ export function CreateWalletWizard({ onClose, onComplete }: CreateWalletWizardPr
         <div className="bg-background-tertiary p-4 rounded-xl space-y-3">
             <div className="flex gap-3">
                 <AlertTriangle className="w-5 h-5 text-status-error shrink-0" />
-                <p className="text-sm text-text-secondary">If you lose your secret phrase, your funds will be lost forever.</p>
+                <p className="text-sm text-text-secondary">{t('wallet.create.loseWarning', '如果您丢失了助记词，您的资金将永久丢失。')}</p>
             </div>
             <div className="flex gap-3">
                 <Check className="w-5 h-5 text-status-success shrink-0" />
-                <p className="text-sm text-text-secondary">Write it down and store it in a secure offline location.</p>
+                <p className="text-sm text-text-secondary">{t('wallet.create.writeDown', '请将其抄写并保存在安全的离线位置。')}</p>
             </div>
         </div>
         <Button className="w-full h-12 text-lg" onClick={() => setStep('mnemonic')}>
@@ -149,7 +171,7 @@ export function CreateWalletWizard({ onClose, onComplete }: CreateWalletWizardPr
                 <div className="absolute inset-0 flex items-center justify-center z-10 cursor-pointer" onClick={() => setShowMnemonic(true)}>
                     <div className="bg-background-primary px-4 py-2 rounded-full shadow-lg border border-divider flex items-center gap-2">
                         <Eye className="w-4 h-4" />
-                        <span className="text-sm font-bold">Tap to Reveal</span>
+                        <span className="text-sm font-bold">{t('security.tapToReveal', '点击显示')}</span>
                     </div>
                 </div>
             )}
@@ -158,10 +180,10 @@ export function CreateWalletWizard({ onClose, onComplete }: CreateWalletWizardPr
         <div className="flex gap-3">
              <Button variant="outline" className="flex-1" onClick={handleCopy} disabled={!showMnemonic}>
                 <Copy className="w-4 h-4 mr-2" />
-                {isCopied ? 'Copied' : 'Copy'}
+                {isCopied ? t('common.copied', '已复制') : t('common.copy', '复制')}
             </Button>
              <Button className="flex-1" onClick={() => setStep('verify')} disabled={!showMnemonic}>
-                {t('common.next', 'Next')}
+                {t('common.next', '下一步')}
             </Button>
         </div>
     </div>
