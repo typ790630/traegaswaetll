@@ -1,0 +1,44 @@
+# EAS Build Ignore File
+# Exclude files that don't need to be uploaded
+
+# Documentation and guides
+*.md
+*.txt
+
+# Test files
+test-*.cjs
+test-*.js
+test-*.bat
+check-*.cjs
+check-*.js
+verify-*.cjs
+verify-*.ts
+quick-test.*
+performance-monitor.js
+
+# Scripts
+scripts/
+
+# Already built assets (will be rebuilt on server)
+dist/
+.vite/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary
+.tmp/
+.temp/
